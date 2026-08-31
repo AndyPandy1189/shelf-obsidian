@@ -7,7 +7,7 @@
 /* eslint-disable @typescript-eslint/no-misused-promises -- React onClick handlers */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion -- Casting dynamic values */
 /* eslint-disable @typescript-eslint/no-unused-vars -- Component props */
-import { App, AbstractInputSuggest, TFolder } from 'obsidian';
+import { App, AbstractInputSuggest, TFolder, TAbstractFile } from 'obsidian';
 
 export class FolderSuggest extends AbstractInputSuggest<TFolder> {
     textInputEl: HTMLInputElement;
@@ -22,7 +22,7 @@ export class FolderSuggest extends AbstractInputSuggest<TFolder> {
         const folders: TFolder[] = [];
         const lowerCaseInputStr = inputStr.toLowerCase();
 
-        abstractFiles.forEach((folder: any) => {
+        abstractFiles.forEach((folder: TAbstractFile) => {
             if (folder instanceof TFolder && folder.path.toLowerCase().contains(lowerCaseInputStr)) {
                 folders.push(folder);
             }
@@ -43,12 +43,12 @@ export class FolderSuggest extends AbstractInputSuggest<TFolder> {
 }
 
 
-/* eslint-enable @typescript-eslint/no-unsafe-assignment */
-/* eslint-enable @typescript-eslint/no-unsafe-member-access */
-/* eslint-enable @typescript-eslint/no-unsafe-return */
-/* eslint-enable @typescript-eslint/no-unsafe-call */
-/* eslint-enable @typescript-eslint/no-unsafe-argument */
-/* eslint-enable @typescript-eslint/no-floating-promises */
-/* eslint-enable @typescript-eslint/no-misused-promises */
-/* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
-/* eslint-enable @typescript-eslint/no-unused-vars */
+/* eslint-enable @typescript-eslint/no-unsafe-assignment -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-member-access -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-return -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-call -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-argument -- End of file */
+/* eslint-enable @typescript-eslint/no-floating-promises -- End of file */
+/* eslint-enable @typescript-eslint/no-misused-promises -- End of file */
+/* eslint-enable @typescript-eslint/no-unnecessary-type-assertion -- End of file */
+/* eslint-enable @typescript-eslint/no-unused-vars -- End of file */

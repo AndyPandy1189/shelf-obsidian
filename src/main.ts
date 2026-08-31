@@ -283,7 +283,7 @@ class ShelfSettingTab extends PluginSettingTab {
 		noticeDiv.appendText(' in all of your templates. Without it, the plugin will not be able to sync or refresh metadata for your items!');
 		
 		const createVarsDesc = (desc: string, vars: string[]) => {
-			const frag = document.createDocumentFragment();
+			const frag = createFragment();
 			frag.appendText(desc);
 			frag.createEl('br');
 			frag.createEl('br');
@@ -294,7 +294,7 @@ class ShelfSettingTab extends PluginSettingTab {
 			return frag;
 		};
 
-		const commonDesc = document.createDocumentFragment();
+		const commonDesc = createFragment();
 		commonDesc.createEl('strong', { text: 'Common Variables (All Types): ' });
 		['title', 'coverUrl', 'releaseDate', 'releaseState', 'externalId'].forEach(v => {
 			commonDesc.createEl('code', { text: `{{${v}}}`, cls: 'shelf-settings-code' });
@@ -350,12 +350,12 @@ class ShelfSettingTab extends PluginSettingTab {
 }
 
 
-/* eslint-enable @typescript-eslint/no-unsafe-assignment */
-/* eslint-enable @typescript-eslint/no-unsafe-member-access */
-/* eslint-enable @typescript-eslint/no-unsafe-return */
-/* eslint-enable @typescript-eslint/no-unsafe-call */
-/* eslint-enable @typescript-eslint/no-unsafe-argument */
-/* eslint-enable @typescript-eslint/no-floating-promises */
-/* eslint-enable @typescript-eslint/no-misused-promises */
-/* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
-/* eslint-enable @typescript-eslint/no-unused-vars */
+/* eslint-enable @typescript-eslint/no-unsafe-assignment -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-member-access -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-return -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-call -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-argument -- End of file */
+/* eslint-enable @typescript-eslint/no-floating-promises -- End of file */
+/* eslint-enable @typescript-eslint/no-misused-promises -- End of file */
+/* eslint-enable @typescript-eslint/no-unnecessary-type-assertion -- End of file */
+/* eslint-enable @typescript-eslint/no-unused-vars -- End of file */

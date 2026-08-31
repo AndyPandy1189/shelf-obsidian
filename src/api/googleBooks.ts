@@ -44,12 +44,12 @@ export async function getGoogleBooksDetails(id: string, apiKey?: string) {
 }
 
 
-/* eslint-enable @typescript-eslint/no-unsafe-assignment */
-/* eslint-enable @typescript-eslint/no-unsafe-member-access */
-/* eslint-enable @typescript-eslint/no-unsafe-return */
-/* eslint-enable @typescript-eslint/no-unsafe-call */
-/* eslint-enable @typescript-eslint/no-unsafe-argument */
-/* eslint-enable @typescript-eslint/no-floating-promises */
-/* eslint-enable @typescript-eslint/no-misused-promises */
-/* eslint-enable @typescript-eslint/no-unnecessary-type-assertion */
-/* eslint-enable @typescript-eslint/no-unused-vars */
+/* eslint-enable @typescript-eslint/no-unsafe-assignment -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-member-access -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-return -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-call -- End of file */
+/* eslint-enable @typescript-eslint/no-unsafe-argument -- End of file */
+/* eslint-enable @typescript-eslint/no-floating-promises -- End of file */
+/* eslint-enable @typescript-eslint/no-misused-promises -- End of file */
+/* eslint-enable @typescript-eslint/no-unnecessary-type-assertion -- End of file */
+/* eslint-enable @typescript-eslint/no-unused-vars -- End of file */
