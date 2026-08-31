@@ -274,16 +274,18 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                 className={`shelf-rating-select rating-${item.rating || 'none'}`}
                 value={item.rating || ''}
                 onClick={(e) => e.stopPropagation()}
-                onChange={async (e) => {
-                    const val = e.target.value;
-                    const ratingNum = val ? parseInt(val) : null;
-                    await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
-                        if (ratingNum === null) {
-                            delete fm.rating;
-                        } else {
-                            fm.rating = ratingNum;
-                        }
-                    });
+                onChange={(e) => {
+                    void (async () => {
+                        const val = e.target.value;
+                        const ratingNum = val ? parseInt(val) : null;
+                        await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                            if (ratingNum === null) {
+                                delete fm.rating;
+                            } else {
+                                fm.rating = ratingNum;
+                            }
+                        });
+                    })();
                 }}
                 title="Rate"
             >
@@ -297,7 +299,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                 {item.releaseDate && <div className="shelf-card-subtitle">{item.releaseDate}</div>}
                 
                 {item.type === 'TV' && item.externalId && plugin.settings.tvTrackerData[item.externalId] && (() => {
-                    const tvd = plugin.settings.tvTrackerData[item.externalId!];
+                    const tvd = plugin.settings.tvTrackerData[item.externalId];
                     const total = tvd.seasons.reduce((acc, s) => acc + s.episodes, 0);
                     const watchedPct = total > 0 ? (tvd.watched.length / total) * 100 : 0;
                     const skippedPct = total > 0 ? ((tvd.skipped?.length || 0) / total) * 100 : 0;
@@ -317,12 +319,14 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                         className={`shelf-card-status status-${(item.status || 'not started').toLowerCase().replace(' ', '-')}`}
                         value={item.status || 'Not Started'}
                         onClick={(e) => e.stopPropagation()}
-                        onChange={async (e) => {
-                            e.stopPropagation();
-                            const newStatus = e.target.value;
-                            await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
-                                fm.status = newStatus;
-                            });
+                        onChange={(e) => {
+                            void (async () => {
+                                e.stopPropagation();
+                                const newStatus = e.target.value;
+                                await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                                    fm.status = newStatus;
+                                });
+                            })();
                         }}
                     >
                         <option value="Not Started">Not Started</option>

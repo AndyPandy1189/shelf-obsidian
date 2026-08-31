@@ -94,7 +94,7 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
         loadData();
         
         // Save loadData to a ref so we can call it manually
-        refreshRef.current = () => loadData(true);
+        refreshRef.current = () => { void loadData(true); };
     }, [item.externalId, plugin]);
 
     const refreshRef = React.useRef<() => void>();
