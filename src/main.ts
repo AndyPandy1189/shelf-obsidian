@@ -140,7 +140,7 @@ export default class ShelfPlugin extends Plugin {
 			leaf = leafObj;
 		}
 
-		workspace.revealLeaf(leaf);
+		workspace.setActiveLeaf(leaf, { focus: true });
 	}
 
 	async loadSettings() {
