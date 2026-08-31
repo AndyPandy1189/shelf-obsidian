@@ -93,9 +93,7 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
         // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Dynamic API response
         loadData();
         
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
         // Save loadData to a ref so we can call it manually
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
         refreshRef.current = () => loadData(true);
     }, [item.externalId, plugin]);
 
@@ -201,6 +199,7 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
                                 <h3>Episode Tracker</h3>
                                 <button 
                                     style={{ fontSize: '0.8em', padding: '4px 8px' }} 
+                                    {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
                                     onClick={() => refreshRef.current?.()}
                                     title="Pull latest episodes from TMDB"
                                 >
@@ -243,14 +242,13 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
                                                 <span style={{fontSize: '0.8em', color: 'var(--text-muted)', marginLeft: '8px', fontWeight: 'normal'}}>
                                                     ({s.episodes} Episodes)
                                                 </span>
-                                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                             </h4>
                                             <div style={{ display: 'flex', gap: '8px' }}>
-                                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
+                                                {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
                                                 <button onClick={() => markSeasonWatched(s.season, s.episodes)}>
                                                     {allWatched ? '✗ Unmark All' : '✓ Mark All'}
                                                 </button>
-                                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
+                                                {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
                                                 <button onClick={() => markSeasonSkipped(s.season, s.episodes)} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg> Skip All
                                                 </button>
@@ -261,12 +259,11 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
                                                 const ep = i + 1;
                                                 const isWatched = watched.has(`S${s.season}E${ep}`);
                                                 const isSkipped = skipped.has(`S${s.season}E${ep}`);
-                                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                                 return (
                                                     <button 
                                                         key={ep} 
                                                         className={`tracker-ep-btn ${isWatched ? 'watched' : ''} ${isSkipped ? 'skipped' : ''}`}
-                                                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
+                                                        {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
                                                         onClick={() => toggleEpisode(s.season, ep)}
                                                         title={`Season ${s.season} Episode ${ep}`}
                                                     >

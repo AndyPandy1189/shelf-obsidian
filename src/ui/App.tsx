@@ -252,68 +252,37 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                 )}
             </div>
             <div 
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                 className={`shelf-collection-icon ${item.collection ? 'in-collection' : ''}`}
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
+                {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
                 onClick={async (e) => {
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     e.stopPropagation();
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     const newVal = !item.collection;
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         fm.collection = newVal;
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     });
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                 }}
                 title={item.collection ? "In Collection" : "Add to Collection"}
             >
                 {item.collection ? (
                     <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                 ) : (
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                 )}
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
             </div>
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
             <select
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                 className={`shelf-rating-select rating-${item.rating || 'none'}`}
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                 value={item.rating || ''}
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                 onClick={(e) => e.stopPropagation()}
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                 onChange={async (e) => {
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     const val = e.target.value;
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     const ratingNum = val ? parseInt(val) : null;
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         if (ratingNum === null) {
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                             delete fm.rating;
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         } else {
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises, @typescript-eslint/no-unnecessary-type-assertion -- Dynamic API response
                             fm.rating = ratingNum;
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         }
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     });
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                 }}
                 title="Rate"
             >
@@ -327,19 +296,12 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                 {item.releaseDate && <div className="shelf-card-subtitle">{item.releaseDate}</div>}
                 
                 {item.type === 'TV' && item.externalId && plugin.settings.tvTrackerData[item.externalId] && (() => {
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises, @typescript-eslint/no-unnecessary-type-assertion -- Dynamic API response
                     const tvd = plugin.settings.tvTrackerData[item.externalId!];
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     const total = tvd.seasons.reduce((acc, s) => acc + s.episodes, 0);
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     const watchedPct = total > 0 ? (tvd.watched.length / total) * 100 : 0;
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     const skippedPct = total > 0 ? ((tvd.skipped?.length || 0) / total) * 100 : 0;
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     return (
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         <div style={{ marginTop: '4px', marginBottom: '8px' }} title={`${Math.round(watchedPct + skippedPct)}% Completed`}>
                             <div className="progress-bar-bg" style={{ width: '100%', height: '4px' }}>
                                 <div className="progress-bar-fill" style={{ width: `${watchedPct}%` }} />
@@ -354,47 +316,25 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                         className={`shelf-card-status status-${(item.status || 'not started').toLowerCase().replace(' ', '-')}`}
                         value={item.status || 'Not Started'}
                         onClick={(e) => e.stopPropagation()}
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         onChange={async (e) => {
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                             e.stopPropagation();
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                             const newStatus = e.target.value;
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                             await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
-                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                 fm.status = newStatus;
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                             });
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         }}
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     >
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         <option value="Not Started">Not Started</option>
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         {(item.type === 'Movies' || item.type === 'TV') && <option value="Watching">Watching</option>}
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         {item.type === 'Games' && <option value="Playing">Playing</option>}
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         {item.type === 'Books' && <option value="Reading">Reading</option>}
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         <option value="Complete">Complete</option>
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         <option value="Dropped">Dropped</option>
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     </select>
-                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                         <button 
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                             style={{ 
-                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                 padding: '0', 
-                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                 height: '24px', 
                                 width: '24px', 
                                 display: 'flex', 
@@ -406,39 +346,23 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                                 cursor: 'pointer', 
                                 color: 'var(--text-muted)' 
                             }}
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
+                            {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
                             onClick={async (e) => {
-                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                 e.stopPropagation();
-                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                 setIsRefreshing(true);
-                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                 try {
-                                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                     const success = await refreshSingleItem(item);
-                                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                     if (success) {
-                                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                         new Notice(`Refreshed ${item.title}`);
-                                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                     } else {
-                                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                         new Notice(`Failed to refresh ${item.title}`);
-                                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                     }
-                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                 } catch (err) {
-                                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                     console.error(`Failed to refresh item: ${item.title}`, err);
-                                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                     new Notice(`Failed to refresh ${item.title}`);
-                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                 } finally {
-                                    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                     setIsRefreshing(false);
-                                // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                                 }
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                             }}
                             title="Refresh Metadata"
                         >
@@ -544,7 +468,6 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     <div key={status} className="shelf-group-section">
                         <h3 className="shelf-group-header">{status}</h3>
                         <div className="shelf-gallery" style={{ paddingTop: '12px', paddingBottom: '24px' }}>
-                            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                             {groups[status].map(item => renderCard(item))}
                         </div>
                     </div>
@@ -589,7 +512,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     <button 
                         className="shelf-fab" 
                         style={{ marginRight: '8px', backgroundColor: 'var(--interactive-normal)', color: 'var(--text-normal)' }} 
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
+                        {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
                         onClick={handleGlobalRefresh}
                         disabled={isRefreshing}
                         title={`Refresh ${activeTab}`}
