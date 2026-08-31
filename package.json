@@ -1,7 +1,7 @@
 {
   "name": "shelf",
   "version": "1.0.0",
-  "description": "A Progressive Web App style media library inside Obsidian",
+  "description": "A Progressive Web App style media library.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
