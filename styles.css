@@ -442,6 +442,75 @@ select.shelf-card-status.status-dropped {
     .week-day-col:not(.has-items) {
         display: none;
     }
+
+    .calendar-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+    
+    .calendar-nav {
+        flex-wrap: wrap;
+    }
+    
+    .calendar-view-toggles {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .calendar-view-toggles button {
+        flex: 1;
+        padding: 6px 4px;
+        font-size: 13px;
+    }
+
+    /* Week View on Mobile: Look like Month View pill items */
+    .week-day-col .shelf-card {
+        flex-direction: row;
+        padding: 4px 8px;
+        background: var(--interactive-normal);
+        border: 1px solid var(--background-modifier-border);
+        border-radius: 4px;
+        min-width: 0;
+        width: auto;
+        height: auto;
+    }
+    
+    .week-day-col .shelf-card .shelf-card-image {
+        display: none;
+    }
+
+    .week-day-col .shelf-card-content {
+        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .week-day-col .shelf-card-title {
+        font-size: 0.9em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .week-day-col .shelf-card-subtitle {
+        display: none;
+    }
+
+    .week-day-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: transparent;
+        border-bottom: none;
+        padding: 4px 0 8px 0;
+    }
+
+    .weekday-name {
+        font-weight: normal;
+        color: var(--text-muted);
+    }
 }
 
 .action-group {
