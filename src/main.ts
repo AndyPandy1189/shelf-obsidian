@@ -238,7 +238,7 @@ class ShelfSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl).setName('Folder Settings').setHeading();
+		new Setting(containerEl).setName('Folders').setHeading();
 		
 		new Setting(containerEl)
 			.setName('Movies Folder')
@@ -272,7 +272,7 @@ class ShelfSettingTab extends PluginSettingTab {
 				.onChange(async (v) => { this.plugin.settings.bookDestinationFolder = v; await this.plugin.saveSettings(); });
 			});
 
-		new Setting(containerEl).setName('Template Settings').setHeading();
+		new Setting(containerEl).setName('Templates').setHeading();
 		
 		const noticeDiv = containerEl.createEl('div', { 
 			cls: 'shelf-settings-callout'
