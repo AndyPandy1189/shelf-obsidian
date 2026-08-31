@@ -158,6 +158,7 @@ const MonthView: React.FC<{items: MediaItem[], currentDate: Date, plugin: ShelfP
             {days.map((day, idx) => {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- Dynamic API response
                 if (!day) return <div key={`empty-${idx}`} className="month-day-cell empty" />;
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- Dynamic API response
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 
                 // Find items that loosely match this date
@@ -165,6 +166,7 @@ const MonthView: React.FC<{items: MediaItem[], currentDate: Date, plugin: ShelfP
                     if (!i.releaseDate) return false;
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- Dynamic API response
                     // If the item just says "2024-10", place it on the 1st
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- Dynamic API response
                     if (i.releaseDate === `${year}-${String(month + 1).padStart(2, '0')}` && day === 1) return true;
                     return i.releaseDate === dateStr;
                 });

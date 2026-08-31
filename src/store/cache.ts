@@ -93,6 +93,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
     if (!cache || !cache.frontmatter) return null;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
     const fm = cache.frontmatter;
     const settings = plugin.settings;
     // We strictly enforce that a file MUST be in one of the mapped folders
@@ -120,6 +121,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
     // Allow frontmatter to override if they share a folder (but must still be inside the folder)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
     const rawType = fm['mediaType'] || fm['type'] || fm['shelf_type'];
     if (rawType !== undefined && rawType !== null) {
         const strType = String(rawType).toLowerCase();
@@ -130,6 +132,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
     }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
     
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
     const status = fm['status'] || fm['shelf_status'];
     
     if (typeStr === 'Unknown' && !status) {
@@ -141,6 +144,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         if (typeof val === 'object' && !Array.isArray(val)) {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- Dynamic API response
             // Probably an Obsidian link object e.g. [[Link]] -> { path: 'Link' }
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- Dynamic API response
             return val.path || val.link || JSON.stringify(val);
         }
         return String(val);
@@ -163,6 +167,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         id: file.path,
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         file: file,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         title: parseStr(fm[t('title')] || fm['title']) || file.basename,
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         type: typeStr as ShelfAny,
@@ -174,12 +179,13 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         releaseDate: parseStr(fm[t('releaseDate')] || fm['releaseDate'] || fm['release_date'] || fm['releasedate']),
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         criticScore: parseStr(fm['criticScore'] || fm['critic_score'] || fm['criticscore']),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         rating: typeof fm['rating'] === 'number' ? fm['rating'] : parseInt(fm['rating']) || undefined,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- Dynamic API response
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         externalId: parseStr(fm[t('externalId')] || fm['externalId'] || fm['external_id'] || fm['externalid']),
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         collection: fm['collection'] === true || fm['collection'] === 'true',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         releaseState: parseStr(fm[t('releaseState')] || fm['releaseState'] || fm['release_state'] || fm['releasestate']),
     };
 }

@@ -280,6 +280,7 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
             onClose();
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Dynamic API response
         } catch (e: ShelfAny) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Dynamic API response
             if (e.message && e.message.includes('already exists')) {
                 setError('This item is already in your library!');
             } else {
@@ -328,6 +329,7 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                             // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Dynamic API response
                             <div key={idx} className="shelf-card" onClick={() => handleAdd(result)}>
                                 {result.coverUrl ? (
+                                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
                                     <img src={result.coverUrl} className="shelf-card-image" alt={result.title} />
                                 ) : (
                                     <div className="shelf-card-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Cover</div>

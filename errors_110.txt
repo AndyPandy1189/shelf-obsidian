@@ -1,0 +1,18 @@
+- **Warning**: Unsafe assignment of an error or ny typed value
+  - @typescript-eslint/no-unsafe-assignment
+  - src/store/cache.ts:96, src/store/cache.ts:123, src/store/cache.ts:133, src/store/cache.ts:166, src/store/cache.ts:180, src/store/cache.ts:183, src/ui/AddMediaModal.tsx:331, src/ui/AddMediaModal.tsx:331
+- **Warning**: Unsafe member access on an error or ny typed value
+  - @typescript-eslint/no-unsafe-member-access
+  - src/store/cache.ts:123, src/store/cache.ts:123, src/store/cache.ts:123, src/store/cache.ts:133, src/store/cache.ts:133, src/store/cache.ts:166, src/store/cache.ts:166, src/store/cache.ts:183, src/store/cache.ts:183, src/store/cache.ts:183, src/store/cache.ts:183, src/ui/AddMediaModal.tsx:283
+- **Warning**: Returns unsafe values from typed code
+  - @typescript-eslint/no-unsafe-return
+  - src/store/cache.ts:144
+- **Warning**: Passes unsafe values into typed parameters
+  - @typescript-eslint/no-unsafe-argument
+  - src/store/cache.ts:178
+- **Warning**: Unsafe call of an error or ny typed value
+  - @typescript-eslint/no-unsafe-call
+  - src/ui/AddMediaModal.tsx:283, src/ui/CalendarView.tsx:161, src/ui/CalendarView.tsx:161, src/ui/CalendarView.tsx:168
+- **Warning**: Promise-returning function provided to attribute where a void return was expected.
+  - @typescript-eslint/no-misused-promises
+  - src/ui/AddMediaModal.tsx:303, src/ui/TrackerModal.tsx:250, src/ui/TrackerModal.tsx:254

@@ -261,7 +261,7 @@ class ShelfSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName('Templates').setHeading();
 		
-		const noticeDiv = containerEl.createEl('div');
+		const noticeDiv = containerEl.createDiv();
 		noticeDiv.addClass('shelf-settings-callout');
 		
 		noticeDiv.createEl('strong', { text: '⚠️ Important: ' });
@@ -283,7 +283,7 @@ class ShelfSettingTab extends PluginSettingTab {
 			return frag;
 		};
 
-		const commonDiv = containerEl.createEl('div');
+		const commonDiv = containerEl.createDiv();
 		commonDiv.addClass('setting-item-description');
 		commonDiv.createEl('strong', { text: 'Common Variables (All Types): ' });
 		['title', 'coverUrl', 'releaseDate', 'releaseState', 'externalId'].forEach(v => {
