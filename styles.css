@@ -348,170 +348,6 @@ select.shelf-card-status.status-dropped {
     display: none;
 }
 
-@media (max-width: 600px) {
-    .hide-on-mobile {
-        display: none;
-    }
-    
-    .shelf-fab {
-        padding: 8px;
-        width: 36px;
-        height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-    }
-    
-    .shelf-tabs-desktop { display: none; }
-    .shelf-tabs-mobile { display: block; }
-    
-    .shelf-header {
-        padding: 12px 16px;
-    }
-    
-    .shelf-tab-select {
-        height: 36px;
-        padding: 0 32px 0 16px;
-        border-radius: 20px;
-        border: 1px solid var(--interactive-accent);
-        background-color: var(--interactive-accent);
-        color: var(--text-on-accent);
-        font-weight: bold;
-        appearance: none;
-        -webkit-appearance: none;
-        background-image: url('data:image/svg+xml;utf8,<svg fill="white" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
-        background-repeat: no-repeat;
-        background-position-x: calc(100% - 8px);
-        background-position-y: center;
-    }
-
-    .shelf-action-bar {
-        padding: 12px 16px;
-    }
-    
-    .shelf-search-input {
-        max-width: 100%;
-    }
-    
-    .action-group {
-        width: 100%;
-    }
-    
-    .shelf-action-bar > .action-group:nth-child(2),
-    .shelf-action-bar > .action-group:nth-child(3) {
-        display: none;
-    }
-
-    .shelf-gallery {
-        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-        gap: 12px;
-        padding: 12px;
-    }
-    
-    .shelf-calendar-container {
-        flex-direction: column;
-        padding: 12px;
-    }
-    
-    .shelf-calendar-main,
-    .shelf-calendar-sidebar {
-        flex: 1 1 auto;
-        max-width: none;
-        border-left: none;
-        padding-left: 0;
-        width: 100%;
-    }
-
-    .shelf-calendar-month-grid,
-    .shelf-calendar-week-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .month-day-header {
-        display: none;
-    }
-    
-    .month-day-cell, .week-day-col {
-        min-height: auto;
-    }
-    
-    .month-day-cell:not(.has-items),
-    .week-day-col:not(.has-items) {
-        display: none;
-    }
-
-    .calendar-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
-    }
-    
-    .calendar-nav {
-        flex-wrap: wrap;
-    }
-    
-    .calendar-view-toggles {
-        width: 100%;
-        justify-content: space-between;
-    }
-    
-    .calendar-view-toggles button {
-        flex: 1;
-        padding: 6px 4px;
-        font-size: 13px;
-    }
-
-    /* Week View on Mobile: Look like Month View pill items */
-    .week-day-col .shelf-card {
-        flex-direction: row;
-        padding: 4px 8px;
-        background: var(--interactive-normal);
-        border: 1px solid var(--background-modifier-border);
-        border-radius: 4px;
-        min-width: 0;
-        width: auto;
-        height: auto;
-    }
-    
-    .week-day-col .shelf-card .shelf-card-image {
-        display: none;
-    }
-
-    .week-day-col .shelf-card-content {
-        padding: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .week-day-col .shelf-card-title {
-        font-size: 0.9em;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .week-day-col .shelf-card-subtitle {
-        display: none;
-    }
-
-    .week-day-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: transparent;
-        border-bottom: none;
-        padding: 4px 0 8px 0;
-    }
-
-    .weekday-name {
-        font-weight: normal;
-        color: var(--text-muted);
-    }
-}
 
 .action-group {
     display: flex;
@@ -953,3 +789,167 @@ select.shelf-card-status.status-dropped {
 .shelf-textarea { width: 100%; min-height: 150px; font-family: var(--font-monospace); }
 
 .setting-item.shelf-setting-block { display: block; }
+@media (max-width: 600px) {
+    .hide-on-mobile {
+        display: none;
+    }
+    
+    .shelf-fab {
+        padding: 8px;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+    
+    .shelf-tabs-desktop { display: none; }
+    .shelf-tabs-mobile { display: block; }
+    
+    .shelf-header {
+        padding: 12px 16px;
+    }
+    
+    .shelf-tab-select {
+        height: 36px;
+        padding: 0 32px 0 16px;
+        border-radius: 20px;
+        border: 1px solid var(--interactive-accent);
+        background-color: var(--interactive-accent);
+        color: var(--text-on-accent);
+        font-weight: bold;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url('data:image/svg+xml;utf8,<svg fill="white" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+        background-repeat: no-repeat;
+        background-position-x: calc(100% - 8px);
+        background-position-y: center;
+    }
+
+    .shelf-action-bar {
+        padding: 12px 16px;
+    }
+    
+    .shelf-search-input {
+        max-width: 100%;
+    }
+    
+    .action-group {
+        width: 100%;
+    }
+    
+    .shelf-action-bar > .action-group:nth-child(2),
+    .shelf-action-bar > .action-group:nth-child(3) {
+        display: none;
+    }
+
+    .shelf-gallery {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .shelf-calendar-container {
+        flex-direction: column;
+        padding: 12px;
+    }
+    
+    .shelf-calendar-main,
+    .shelf-calendar-sidebar {
+        flex: 1 1 auto;
+        max-width: none;
+        border-left: none;
+        padding-left: 0;
+        width: 100%;
+    }
+
+    .shelf-calendar-month-grid,
+    .shelf-calendar-week-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .month-day-header {
+        display: none;
+    }
+    
+    .month-day-cell, .week-day-col {
+        min-height: auto;
+    }
+    
+    .month-day-cell:not(.has-items),
+    .week-day-col:not(.has-items) {
+        display: none;
+    }
+
+    .calendar-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+    
+    .calendar-nav {
+        flex-wrap: wrap;
+    }
+    
+    .calendar-view-toggles {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .calendar-view-toggles button {
+        flex: 1;
+        padding: 6px 4px;
+        font-size: 13px;
+    }
+
+    /* Week View on Mobile: Look like Month View pill items */
+    .week-day-col .shelf-card {
+        flex-direction: row;
+        padding: 4px 8px;
+        background: var(--interactive-normal);
+        border: 1px solid var(--background-modifier-border);
+        border-radius: 4px;
+        min-width: 0;
+        width: auto;
+        height: auto;
+    }
+    
+    .week-day-col .shelf-card .shelf-card-image {
+        display: none;
+    }
+
+    .week-day-col .shelf-card-content {
+        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .week-day-col .shelf-card-title {
+        font-size: 0.9em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .week-day-col .shelf-card-subtitle {
+        display: none;
+    }
+
+    .week-day-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: transparent;
+        border-bottom: none;
+        padding: 4px 0 8px 0;
+    }
+
+    .weekday-name {
+        font-weight: normal;
+        color: var(--text-muted);
+    }
+}
