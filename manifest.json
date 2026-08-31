@@ -1,0 +1,10 @@
+{
+  "id": "shelf-obsidian",
+  "name": "Shelf",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "A Progressive Web App style media library inside Obsidian",
+  "author": "AndyPandy",
+  "authorUrl": "https://github.com/AndyPandy1189",
+  "isDesktopOnly": false
+}
