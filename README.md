@@ -1,6 +1,6 @@
 # Shelf for Obsidian
 
-**Shelf** is a powerful, visually stunning media library plugin for Obsidian. It brings a Progressive Web App (PWA) style interface directly into your vault, allowing you to track, manage, and sync metadata for your Movies, TV Shows, Games, and Books.
+**Shelf** is a powerful, visually stunning media library plugin for Obsidian. It brings a sleek interface directly into your vault, allowing you to track, manage, and sync metadata for your Movies, TV Shows, Games, and Books.
 
 ## ✨ Features
 
