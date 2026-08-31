@@ -2,7 +2,7 @@
   "id": "shelf",
   "name": "Shelf",
   "version": "1.0.0",
-  "minAppVersion": "1.4.0",
+  "minAppVersion": "1.6.0",
   "description": "A Progressive Web App style media library.",
   "author": "AndyPandy",
   "authorUrl": "https://github.com/AndyPandy1189",

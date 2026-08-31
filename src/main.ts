@@ -127,7 +127,6 @@ export default class ShelfPlugin extends Plugin {
 	}
 
 	onunload() {
-		this.app.workspace.detachLeavesOfType(VIEW_TYPE_SHELF);
 	}
 
 	async activateView() {
@@ -186,7 +185,7 @@ class ShelfSettingTab extends PluginSettingTab {
 		const {containerEl} = this;
 		containerEl.empty();
 
-		containerEl.createEl('h3', {text: 'API Setup'});
+		new Setting(containerEl).setName('API Setup').setHeading();
 		new Setting(containerEl)
 			.setName('TMDB API Key')
 			.setDesc('Required for Movies & TV Shows metadata.')
@@ -239,7 +238,7 @@ class ShelfSettingTab extends PluginSettingTab {
 				});
 			});
 
-		containerEl.createEl('h3', {text: 'Folder Settings'});
+		new Setting(containerEl).setName('Folder Settings').setHeading();
 		
 		new Setting(containerEl)
 			.setName('Movies Folder')
@@ -273,14 +272,30 @@ class ShelfSettingTab extends PluginSettingTab {
 				.onChange(async (v) => { this.plugin.settings.bookDestinationFolder = v; await this.plugin.saveSettings(); });
 			});
 
-		containerEl.createEl('h3', {text: 'Template Settings'});
+		new Setting(containerEl).setName('Template Settings').setHeading();
 		
 		const noticeDiv = containerEl.createEl('div', { 
-			attr: { 
-				style: 'background-color: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-left: 4px solid var(--interactive-accent); color: var(--text-normal); padding: 10px 15px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em; line-height: 1.5;' 
-			} 
+			cls: 'shelf-settings-callout'
 		});
-		noticeDiv.innerHTML = `<strong>⚠️ Important:</strong> The <code style="background: var(--background-modifier-form-field); padding: 2px 4px; border-radius: 4px;">{{externalId}}</code> variable is <strong>strictly required</strong> in all of your templates. Without it, the plugin will not be able to sync or refresh metadata for your items!`;
+		
+		const strongEl = document.createElement('strong');
+		strongEl.textContent = '⚠️ Important: ';
+		noticeDiv.appendChild(strongEl);
+		
+		noticeDiv.appendChild(document.createTextNode('The '));
+		
+		const codeEl = document.createElement('code');
+		codeEl.className = 'shelf-settings-code';
+		codeEl.textContent = '{{externalId}}';
+		noticeDiv.appendChild(codeEl);
+		
+		noticeDiv.appendChild(document.createTextNode(' variable is '));
+		
+		const strictEl = document.createElement('strong');
+		strictEl.textContent = 'strictly required';
+		noticeDiv.appendChild(strictEl);
+		
+		noticeDiv.appendChild(document.createTextNode(' in all of your templates. Without it, the plugin will not be able to sync or refresh metadata for your items!'));
 		
 		const createVarsDesc = (desc: string, vars: string[]) => {
 			const frag = document.createDocumentFragment();
@@ -293,10 +308,7 @@ class ShelfSettingTab extends PluginSettingTab {
 			vars.forEach(v => {
 				const code = document.createElement('code');
 				code.textContent = `{{${v}}}`;
-				code.style.marginLeft = '4px';
-				code.style.padding = '2px 4px';
-				code.style.backgroundColor = 'var(--background-modifier-form-field)';
-				code.style.borderRadius = '4px';
+				code.classList.add('shelf-settings-code');
 				frag.appendChild(code);
 			});
 			return frag;
@@ -309,57 +321,55 @@ class ShelfSettingTab extends PluginSettingTab {
 		['title', 'coverUrl', 'releaseDate', 'releaseState', 'externalId'].forEach(v => {
 			const code = document.createElement('code');
 			code.textContent = `{{${v}}}`;
-			code.style.marginLeft = '4px';
-			code.style.padding = '2px 4px';
-			code.style.backgroundColor = 'var(--background-modifier-form-field)';
-			code.style.borderRadius = '4px';
+			code.classList.add('shelf-settings-code');
 			commonDesc.appendChild(code);
 		});
-		const commonDiv = containerEl.createEl('div', { cls: 'setting-item-description', attr: { style: 'margin-bottom: 15px;' } });
+		
+		const commonDiv = containerEl.createEl('div', { cls: 'setting-item-description' });
 		commonDiv.appendChild(commonDesc);
 		
-		new Setting(containerEl)
+		const setupTextArea = (text: any) => {
+			text.inputEl.classList.add('shelf-textarea');
+		};
+
+		const s1 = new Setting(containerEl)
 			.setName('Movie Template')
 			.setDesc(createVarsDesc('Markdown template for newly added movies. Maps metadata to frontmatter.', ['overview', 'rating', 'originalLanguage', 'genres', 'studios', 'directors']))
 			.addTextArea(text => {
 				text.setValue(this.plugin.settings.movieTemplate)
 				.onChange(async (v) => { this.plugin.settings.movieTemplate = v; await this.plugin.saveSettings(); });
-				text.inputEl.style.width = '100%';
-				text.inputEl.style.minHeight = '150px';
-				text.inputEl.style.fontFamily = 'monospace';
-			}).settingEl.style.display = 'block';
+				setupTextArea(text);
+			});
+		s1.settingEl.classList.add('shelf-setting-block');
 
-		new Setting(containerEl)
+		const s2 = new Setting(containerEl)
 			.setName('TV Show Template')
 			.setDesc(createVarsDesc('Markdown template for newly added TV shows. Maps metadata to frontmatter.', ['overview', 'rating', 'originalLanguage', 'genres', 'studios', 'directors']))
 			.addTextArea(text => {
 				text.setValue(this.plugin.settings.tvTemplate)
 				.onChange(async (v) => { this.plugin.settings.tvTemplate = v; await this.plugin.saveSettings(); });
-				text.inputEl.style.width = '100%';
-				text.inputEl.style.minHeight = '150px';
-				text.inputEl.style.fontFamily = 'monospace';
-			}).settingEl.style.display = 'block';
+				setupTextArea(text);
+			});
+		s2.settingEl.classList.add('shelf-setting-block');
 
-		new Setting(containerEl)
+		const s3 = new Setting(containerEl)
 			.setName('Game Template')
 			.setDesc(createVarsDesc('Markdown template for newly added games. Maps metadata to frontmatter.', ['summary', 'rating', 'genres', 'developer']))
 			.addTextArea(text => {
 				text.setValue(this.plugin.settings.gameTemplate)
 				.onChange(async (v) => { this.plugin.settings.gameTemplate = v; await this.plugin.saveSettings(); });
-				text.inputEl.style.width = '100%';
-				text.inputEl.style.minHeight = '150px';
-				text.inputEl.style.fontFamily = 'monospace';
-			}).settingEl.style.display = 'block';
+				setupTextArea(text);
+			});
+		s3.settingEl.classList.add('shelf-setting-block');
 
-		new Setting(containerEl)
+		const s4 = new Setting(containerEl)
 			.setName('Book Template')
 			.setDesc(createVarsDesc('Markdown template for newly added books. Maps metadata to frontmatter.', ['authors', 'genres', 'publisher', 'pageCount', 'description']))
 			.addTextArea(text => {
 				text.setValue(this.plugin.settings.bookTemplate)
 				.onChange(async (v) => { this.plugin.settings.bookTemplate = v; await this.plugin.saveSettings(); });
-				text.inputEl.style.width = '100%';
-				text.inputEl.style.minHeight = '150px';
-				text.inputEl.style.fontFamily = 'monospace';
-			}).settingEl.style.display = 'block';
+				setupTextArea(text);
+			});
+		s4.settingEl.classList.add('shelf-setting-block');
 	}
 }
