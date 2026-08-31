@@ -176,46 +176,54 @@ class ShelfSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('TMDB API Key')
 			.setDesc('Required for Movies & TV Shows metadata.')
-			.addText(text => text
-				.setPlaceholder('Enter your API key')
+			.addText(text => {
+				text.inputEl.type = 'password';
+				text.setPlaceholder('Enter your API key')
 				.setValue(this.plugin.settings.tmdbApiKey)
 				.onChange(async (value) => {
 					this.plugin.settings.tmdbApiKey = value;
 					await this.plugin.saveSettings();
-				}));
+				});
+			});
 
 		new Setting(containerEl)
 			.setName('IGDB Client ID')
 			.setDesc('Required for Video Games metadata.')
-			.addText(text => text
-				.setPlaceholder('Enter your Client ID')
+			.addText(text => {
+				text.inputEl.type = 'password';
+				text.setPlaceholder('Enter your Client ID')
 				.setValue(this.plugin.settings.igdbClientId)
 				.onChange(async (value) => {
 					this.plugin.settings.igdbClientId = value;
 					await this.plugin.saveSettings();
-				}));
+				});
+			});
 
 		new Setting(containerEl)
 			.setName('IGDB Client Secret')
 			.setDesc('Required to generate an access token for Video Games metadata.')
-			.addText(text => text
-				.setPlaceholder('Enter your Client Secret')
+			.addText(text => {
+				text.inputEl.type = 'password';
+				text.setPlaceholder('Enter your Client Secret')
 				.setValue(this.plugin.settings.igdbClientSecret)
 				.onChange(async (value) => {
 					this.plugin.settings.igdbClientSecret = value;
 					await this.plugin.saveSettings();
-				}));
+				});
+			});
 
 		new Setting(containerEl)
 			.setName('Google Books API Key')
 			.setDesc('Required for Books metadata.')
-			.addText(text => text
-				.setPlaceholder('Enter your API key')
+			.addText(text => {
+				text.inputEl.type = 'password';
+				text.setPlaceholder('Enter your API key')
 				.setValue(this.plugin.settings.googleBooksApiKey)
 				.onChange(async (value) => {
 					this.plugin.settings.googleBooksApiKey = value;
 					await this.plugin.saveSettings();
-				}));
+				});
+			});
 
 		new Setting(containerEl).setName('Folders').setHeading();
 		
