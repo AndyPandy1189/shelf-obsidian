@@ -1,6 +1,6 @@
 {
   "name": "shelf",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Progressive Web App style media library.",
   "main": "main.js",
   "scripts": {
