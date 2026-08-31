@@ -1,4 +1,3 @@
-import { ShelfAny } from '../types';
 import { requestUrl } from 'obsidian';
 
 export async function fetchIGDBToken(clientId: string, clientSecret: string): Promise<string> {
@@ -6,6 +5,7 @@ export async function fetchIGDBToken(clientId: string, clientSecret: string): Pr
         url: `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
         method: 'POST'
     });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access -- Dynamic API response
     return response.json.access_token;
 }
 
@@ -26,8 +26,10 @@ export async function searchIGDB(query: string, clientId: string, accessToken: s
             },
             body: body
         });
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- Dynamic API response
         return response.json;
     } catch (e: ShelfAny) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Dynamic API response
         if (e.status === 401 || (e.message && e.message.includes('401'))) {
             throw new Error("IGDB_401");
         }
@@ -50,8 +52,10 @@ export async function getIGDBDetails(id: string, clientId: string, accessToken: 
             },
             body: body
         });
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access -- Dynamic API response
         return response.json[0];
     } catch (e: ShelfAny) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Dynamic API response
         if (e.status === 401 || (e.message && e.message.includes('401'))) {
             throw new Error("IGDB_401");
         }

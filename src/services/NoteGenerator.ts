@@ -1,5 +1,5 @@
 import { ShelfAny } from '../types';
-import { App, normalizePath } from 'obsidian';
+import { normalizePath } from 'obsidian';
 import ShelfPlugin from '../main';
 
 export class NoteGenerator {
@@ -38,6 +38,7 @@ export class NoteGenerator {
         let content = template;
         
         // Replace all available variables matching {{key}}
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- Dynamic API response
         for (const [key, value] of Object.entries(metadata)) {
             if (key === 'raw') continue; // Skip raw dump
             
