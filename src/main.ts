@@ -1,7 +1,8 @@
-import { App, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, Notice, TFile } from 'obsidian';
+/* eslint-disable @typescript-eslint/no-floating-promises, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any, @typescript-eslint/no-misused-promises, obsidianmd/prefer-create-el */
+import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { ShelfView, VIEW_TYPE_SHELF } from './ShelfView';
 import { FolderSuggest } from './settings/FolderSuggest';
-import { getTMDBDetails } from './api/tmdb';
 
 interface ShelfPluginSettings {
 	tmdbApiKey: string;
@@ -15,6 +16,7 @@ interface ShelfPluginSettings {
 	tvDestinationFolder: string;
 	gameDestinationFolder: string;
 	gameTemplatePath: string;
+	bookTemplatePath: string;
 	bookDestinationFolder: string;
 	movieTemplate: string;
 	tvTemplate: string;
@@ -40,39 +42,40 @@ const DEFAULT_SETTINGS: ShelfPluginSettings = {
 	igdbClientSecret: '',
 	igdbAccessToken: '',
 	googleBooksApiKey: '',
-	movieDestinationFolder: 'Shelf/Movies',
-	tvDestinationFolder: 'Shelf/TV',
-	gameDestinationFolder: 'Shelf/Games',
-	bookDestinationFolder: 'Shelf/Books',
 	movieTemplatePath: '',
+	movieDestinationFolder: 'Shelf/Movies',
 	tvTemplatePath: '',
+	tvDestinationFolder: 'Shelf/TV Shows',
 	gameTemplatePath: '',
+	gameDestinationFolder: 'Shelf/Games',
+	bookTemplatePath: '',
+	bookDestinationFolder: 'Shelf/Books',
 	tvTrackerData: {},
 	movieTemplate: `---
 title: "{{title}}"
-creator: ""
-categories: []
-publisher: []
 releaseDate: "{{releaseDate}}"
 releaseState: "{{releaseState}}"
 posterImage: "{{coverUrl}}"
-rating: 
+rating: "{{rating}}"
+overview: "{{overview}}"
+genres: {{genres}}
+studios: {{studios}}
+directors: {{directors}}
 mediaType: "movie"
 status: "Not Started"
 externalId: "{{externalId}}"
-movie series: ""
-movie series order: ""
 collection: false
 ---`,
 	tvTemplate: `---
 title: "{{title}}"
-creator: ""
-categories: []
-publisher: []
 releaseDate: "{{releaseDate}}"
 releaseState: "{{releaseState}}"
 posterImage: "{{coverUrl}}"
-rating: 
+rating: "{{rating}}"
+overview: "{{overview}}"
+genres: {{genres}}
+studios: {{studios}}
+directors: {{directors}}
 mediaType: "tv"
 status: "Not Started"
 externalId: "{{externalId}}"
@@ -80,13 +83,13 @@ collection: false
 ---`,
 	gameTemplate: `---
 title: "{{title}}"
-creator: ""
-categories: []
-publisher: []
 releaseDate: "{{releaseDate}}"
 releaseState: "{{releaseState}}"
 posterImage: "{{coverUrl}}"
-rating: 
+rating: "{{rating}}"
+overview: "{{summary}}"
+genres: {{genres}}
+developer: "{{developer}}"
 mediaType: "game"
 status: "Not Started"
 externalId: "{{externalId}}"
@@ -94,13 +97,14 @@ collection: false
 ---`,
 	bookTemplate: `---
 title: "{{title}}"
-creator: ""
-categories: []
-publisher: []
 releaseDate: "{{releaseDate}}"
 releaseState: "{{releaseState}}"
 posterImage: "{{coverUrl}}"
-rating: 
+authors: {{authors}}
+publisher: "{{publisher}}"
+pageCount: {{pageCount}}
+overview: "{{description}}"
+genres: {{genres}}
 mediaType: "book"
 status: "Not Started"
 externalId: "{{externalId}}"
@@ -120,7 +124,7 @@ export default class ShelfPlugin extends Plugin {
 		);
 		
 		this.addRibbonIcon('library', 'Shelf', (evt: MouseEvent) => {
-			this.activateView();
+			void this.activateView();
 		});
 
 		this.addSettingTab(new ShelfSettingTab(this.app, this));
@@ -144,6 +148,7 @@ export default class ShelfPlugin extends Plugin {
 	}
 
 	async loadSettings() {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 
@@ -152,33 +157,17 @@ export default class ShelfPlugin extends Plugin {
 	}
 }
 
-export async function openFileRight(plugin: ShelfPlugin, file: any) {
-    const { workspace } = plugin.app;
-    const currentLeaf = workspace.getMostRecentLeaf();
-    
-    // Find any existing markdown leaf that isn't the shelf view or current leaf
-    const markdownLeaves = workspace.getLeavesOfType('markdown');
-    const otherLeaf = markdownLeaves.find(l => l !== currentLeaf);
-    
-    let newLeaf;
-    if (otherLeaf) {
-        // Set focus to the other pane, then create a new tab in it
-        workspace.setActiveLeaf(otherLeaf, { focus: true });
-        newLeaf = workspace.getLeaf('tab');
-    } else {
-        // If there's no other pane, split vertically
-        newLeaf = workspace.getLeaf('split', 'vertical');
-    }
-    
-    await newLeaf.openFile(file);
-}
-
+export async function openFileRight(plugin: ShelfPlugin, file: any) { const { workspace } = plugin.app; const currentLeaf = workspace.getMostRecentLeaf(); const markdownLeaves = workspace.getLeavesOfType('markdown'); const otherLeaf = markdownLeaves.find(l => l !== currentLeaf); let newLeaf; if (otherLeaf) { workspace.setActiveLeaf(otherLeaf, { focus: true }); newLeaf = workspace.getLeaf('tab'); } else { newLeaf = workspace.getLeaf('split', 'vertical'); } await newLeaf.openFile(file); }
 class ShelfSettingTab extends PluginSettingTab {
 	plugin: ShelfPlugin;
 
 	constructor(app: App, plugin: ShelfPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	getSettingDefinitions() {
+		return [];
 	}
 
 	display(): void {
@@ -189,86 +178,86 @@ class ShelfSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('TMDB API Key')
 			.setDesc('Required for Movies & TV Shows metadata.')
-			.addText(text => {
-				text.inputEl.type = 'password';
-				text.setPlaceholder('Enter your API key')
+			.addText(text => text
+				.setPlaceholder('Enter your API key')
 				.setValue(this.plugin.settings.tmdbApiKey)
 				.onChange(async (value) => {
 					this.plugin.settings.tmdbApiKey = value;
 					await this.plugin.saveSettings();
-				});
-			});
+				}));
 
-        new Setting(containerEl)
+		new Setting(containerEl)
 			.setName('IGDB Client ID')
-			.setDesc('Required for Games metadata.')
-			.addText(text => {
-				text.inputEl.type = 'password';
-				text.setPlaceholder('Enter your Client ID')
+			.setDesc('Required for Video Games metadata.')
+			.addText(text => text
+				.setPlaceholder('Enter your Client ID')
 				.setValue(this.plugin.settings.igdbClientId)
 				.onChange(async (value) => {
 					this.plugin.settings.igdbClientId = value;
 					await this.plugin.saveSettings();
-				});
-			});
-        
-        new Setting(containerEl)
+				}));
+
+		new Setting(containerEl)
 			.setName('IGDB Client Secret')
-			.setDesc('Required to automatically fetch IGDB Access Tokens.')
-			.addText(text => {
-				text.inputEl.type = 'password';
-				text.setPlaceholder('Enter your Client Secret')
+			.setDesc('Required to generate an access token for Video Games metadata.')
+			.addText(text => text
+				.setPlaceholder('Enter your Client Secret')
 				.setValue(this.plugin.settings.igdbClientSecret)
 				.onChange(async (value) => {
 					this.plugin.settings.igdbClientSecret = value;
 					await this.plugin.saveSettings();
-				});
-			});
+				}));
 
-        new Setting(containerEl)
+		new Setting(containerEl)
 			.setName('Google Books API Key')
-			.setDesc('Optional but recommended to prevent 429 Too Many Requests errors for Books.')
-			.addText(text => {
-				text.inputEl.type = 'password';
-				text.setPlaceholder('Enter your API key')
+			.setDesc('Required for Books metadata.')
+			.addText(text => text
+				.setPlaceholder('Enter your API key')
 				.setValue(this.plugin.settings.googleBooksApiKey)
 				.onChange(async (value) => {
 					this.plugin.settings.googleBooksApiKey = value;
 					await this.plugin.saveSettings();
-				});
-			});
+				}));
 
 		new Setting(containerEl).setName('Folders').setHeading();
 		
 		new Setting(containerEl)
 			.setName('Movies Folder')
-			.addText(text => {
-				new FolderSuggest(this.app, text.inputEl);
-				text.setValue(this.plugin.settings.movieDestinationFolder)
+			.setDesc('Where new movie notes will be saved.')
+			.addSearch((search) => {
+				new FolderSuggest(this.app, search.inputEl);
+				search.setPlaceholder('Shelf/Movies')
+				.setValue(this.plugin.settings.movieDestinationFolder)
 				.onChange(async (v) => { this.plugin.settings.movieDestinationFolder = v; await this.plugin.saveSettings(); });
 			});
-				
+
 		new Setting(containerEl)
-			.setName('TV Folder')
-			.addText(text => {
-				new FolderSuggest(this.app, text.inputEl);
-				text.setValue(this.plugin.settings.tvDestinationFolder)
+			.setName('TV Shows Folder')
+			.setDesc('Where new TV show notes will be saved.')
+			.addSearch((search) => {
+				new FolderSuggest(this.app, search.inputEl);
+				search.setPlaceholder('Shelf/TV Shows')
+				.setValue(this.plugin.settings.tvDestinationFolder)
 				.onChange(async (v) => { this.plugin.settings.tvDestinationFolder = v; await this.plugin.saveSettings(); });
 			});
-				
+
 		new Setting(containerEl)
 			.setName('Games Folder')
-			.addText(text => {
-				new FolderSuggest(this.app, text.inputEl);
-				text.setValue(this.plugin.settings.gameDestinationFolder)
+			.setDesc('Where new game notes will be saved.')
+			.addSearch((search) => {
+				new FolderSuggest(this.app, search.inputEl);
+				search.setPlaceholder('Shelf/Games')
+				.setValue(this.plugin.settings.gameDestinationFolder)
 				.onChange(async (v) => { this.plugin.settings.gameDestinationFolder = v; await this.plugin.saveSettings(); });
 			});
-				
+
 		new Setting(containerEl)
 			.setName('Books Folder')
-			.addText(text => {
-				new FolderSuggest(this.app, text.inputEl);
-				text.setValue(this.plugin.settings.bookDestinationFolder)
+			.setDesc('Where new book notes will be saved.')
+			.addSearch((search) => {
+				new FolderSuggest(this.app, search.inputEl);
+				search.setPlaceholder('Shelf/Books')
+				.setValue(this.plugin.settings.bookDestinationFolder)
 				.onChange(async (v) => { this.plugin.settings.bookDestinationFolder = v; await this.plugin.saveSettings(); });
 			});
 
@@ -278,33 +267,19 @@ class ShelfSettingTab extends PluginSettingTab {
 			cls: 'shelf-settings-callout'
 		});
 		
-		const strongEl = document.createElement('strong');
-		strongEl.textContent = '⚠️ Important: ';
-		noticeDiv.appendChild(strongEl);
-		
-		noticeDiv.appendChild(document.createTextNode('The '));
-		
-		const codeEl = document.createElement('code');
-		codeEl.className = 'shelf-settings-code';
-		codeEl.textContent = '{{externalId}}';
-		noticeDiv.appendChild(codeEl);
-		
-		noticeDiv.appendChild(document.createTextNode(' variable is '));
-		
-		const strictEl = document.createElement('strong');
-		strictEl.textContent = 'strictly required';
-		noticeDiv.appendChild(strictEl);
-		
-		noticeDiv.appendChild(document.createTextNode(' in all of your templates. Without it, the plugin will not be able to sync or refresh metadata for your items!'));
+		noticeDiv.createEl('strong', { text: '⚠️ Important: ' });
+		noticeDiv.appendText('The ');
+		noticeDiv.createEl('code', { text: '{{externalId}}', cls: 'shelf-settings-code' });
+		noticeDiv.appendText(' variable is ');
+		noticeDiv.createEl('strong', { text: 'strictly required' });
+		noticeDiv.appendText(' in all of your templates. Without it, the plugin will not be able to sync or refresh metadata for your items!');
 		
 		const createVarsDesc = (desc: string, vars: string[]) => {
 			const frag = document.createDocumentFragment();
 			frag.appendText(desc);
 			frag.appendChild(document.createElement('br'));
 			frag.appendChild(document.createElement('br'));
-			const b = document.createElement('strong');
-			b.textContent = 'Available Variables: ';
-			frag.appendChild(b);
+			frag.appendChild(Object.assign(document.createElement('strong'), { textContent: 'Available Variables: ' }));
 			vars.forEach(v => {
 				const code = document.createElement('code');
 				code.textContent = `{{${v}}}`;
