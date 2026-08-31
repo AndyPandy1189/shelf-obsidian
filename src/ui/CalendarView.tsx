@@ -89,8 +89,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, plugin }) => 
                 <h3>Unknown Dates</h3>
                 <div className="tbd-list">
                     {tbdItems.map(item => (
-                        {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
-                        <div key={item.id} className="tbd-item" onClick={() => openFileRight(plugin, item.file)}>
+                        <div key={item.id} className="tbd-item" onClick={() => { void openFileRight(plugin, item.file); }}>
                             <div className="tbd-title">{item.title}</div>
                             <div className="tbd-type">{item.type}</div>
                         </div>
@@ -175,8 +174,7 @@ const MonthView: React.FC<{items: MediaItem[], currentDate: Date, plugin: ShelfP
                         <div className="day-number">{day}</div>
                         <div className="day-items">
                             {dayItems.map(item => (
-                                {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
-                                <div key={item.id} className="day-item-pill" onClick={() => openFileRight(plugin, item.file)} title={item.title}>
+                                <div key={item.id} className="day-item-pill" onClick={() => { void openFileRight(plugin, item.file); }} title={item.title}>
                                     <span className="pill-type">{item.type.charAt(0)}</span>
                                     <span className="pill-title">{item.title}</span>
                                 </div>
@@ -231,8 +229,7 @@ function getStartOfWeek(date: Date) {
 }
 
 const CalendarCard: React.FC<{item: MediaItem, plugin: ShelfPlugin, compact?: boolean}> = ({ item, plugin, compact }) => (
-    {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
-    <div className={`shelf-card ${compact ? 'compact' : ''}`} onClick={() => openFileRight(plugin, item.file)}>
+    <div className={`shelf-card ${compact ? 'compact' : ''}`} onClick={() => { void openFileRight(plugin, item.file); }}>
         {item.coverUrl ? (
             <img src={item.coverUrl} className="shelf-card-image" alt={item.title} />
         ) : (

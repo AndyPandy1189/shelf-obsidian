@@ -253,13 +253,14 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
             </div>
             <div 
                 className={`shelf-collection-icon ${item.collection ? 'in-collection' : ''}`}
-                {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
-                onClick={async (e) => {
-                    e.stopPropagation();
-                    const newVal = !item.collection;
-                    await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
-                        fm.collection = newVal;
-                    });
+                onClick={(e) => {
+                    void (async () => {
+                        e.stopPropagation();
+                        const newVal = !item.collection;
+                        await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                            fm.collection = newVal;
+                        });
+                    })();
                 }}
                 title={item.collection ? "In Collection" : "Add to Collection"}
             >
@@ -346,7 +347,6 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                                 cursor: 'pointer', 
                                 color: 'var(--text-muted)' 
                             }}
-                            {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
                             onClick={async (e) => {
                                 e.stopPropagation();
                                 setIsRefreshing(true);
@@ -512,8 +512,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     <button 
                         className="shelf-fab" 
                         style={{ marginRight: '8px', backgroundColor: 'var(--interactive-normal)', color: 'var(--text-normal)' }} 
-                        {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
-                        onClick={handleGlobalRefresh}
+                        onClick={(e) => { void handleGlobalRefresh(e); }}
                         disabled={isRefreshing}
                         title={`Refresh ${activeTab}`}
                     >

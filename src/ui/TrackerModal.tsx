@@ -199,7 +199,6 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
                                 <h3>Episode Tracker</h3>
                                 <button 
                                     style={{ fontSize: '0.8em', padding: '4px 8px' }} 
-                                    {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
                                     onClick={() => refreshRef.current?.()}
                                     title="Pull latest episodes from TMDB"
                                 >
@@ -244,12 +243,10 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
                                                 </span>
                                             </h4>
                                             <div style={{ display: 'flex', gap: '8px' }}>
-                                                {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
-                                                <button onClick={() => markSeasonWatched(s.season, s.episodes)}>
+                                                <button onClick={() => { void markSeasonWatched(s.season, s.episodes); }}>
                                                     {allWatched ? '✗ Unmark All' : '✓ Mark All'}
                                                 </button>
-                                                {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
-                                                <button onClick={() => markSeasonSkipped(s.season, s.episodes)} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <button onClick={() => { void markSeasonSkipped(s.season, s.episodes); }} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg> Skip All
                                                 </button>
                                             </div>
@@ -263,8 +260,7 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
                                                     <button 
                                                         key={ep} 
                                                         className={`tracker-ep-btn ${isWatched ? 'watched' : ''} ${isSkipped ? 'skipped' : ''}`}
-                                                        {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
-                                                        onClick={() => toggleEpisode(s.season, ep)}
+                                                        onClick={() => { void toggleEpisode(s.season, ep); }}
                                                         title={`Season ${s.season} Episode ${ep}`}
                                                     >
                                                         {isWatched ? '✓' : isSkipped ? (

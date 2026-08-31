@@ -299,8 +299,7 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                     <button className="close-btn" onClick={onClose}>&times;</button>
                 </div>
                 <div className="shelf-modal-body">
-                    {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- React */}
-                    <form className="shelf-search-bar" onSubmit={handleSearch}>
+                    <form className="shelf-search-bar" onSubmit={(e) => { void handleSearch(e); }}>
                         <select value={type} onChange={e => {setType(e.target.value as ShelfAny); setResults([]);}} style={{ width: '100%' }}>
                             <option value="Movies">Movies</option>
                             <option value="TV">TV Shows</option>
@@ -324,7 +323,7 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                     <div className="shelf-gallery shelf-modal-results">
                         {results.map((result, idx) => (
                             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-                            <div key={idx} className="shelf-card" onClick={() => handleAdd(result)}>
+                            <div key={idx} className="shelf-card" onClick={() => { void handleAdd(result); }}>
                                 {result.coverUrl ? (
                                     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
                                     <img src={result.coverUrl} className="shelf-card-image" alt={result.title} />
