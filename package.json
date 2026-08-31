@@ -1,5 +1,5 @@
 {
-  "name": "shelf-obsidian",
+  "name": "shelf",
   "version": "1.0.0",
   "description": "A Progressive Web App style media library inside Obsidian",
   "main": "main.js",
