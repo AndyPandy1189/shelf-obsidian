@@ -351,7 +351,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                                 cursor: 'pointer', 
                                 color: 'var(--text-muted)' 
                             }}
-                            onClick={async (e) => {
+                            onClick={(e) => { void (async () => {
                                 e.stopPropagation();
                                 setIsRefreshing(true);
                                 try {
@@ -367,7 +367,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                                 } finally {
                                     setIsRefreshing(false);
                                 }
-                            }}
+                            })(); }}
                             title="Refresh Metadata"
                         >
                             ↻
