@@ -319,7 +319,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
                     const fmSkipped = fm?.skippedEpisodes;
                     
-                    const watchedCount = Array.isArray(fmWatched) ? fmWatched.length : tvd.watched.length;
+                    const watchedCount = Array.isArray(fmWatched) ? fmWatched.length : (tvd.watched?.length || 0);
                     const skippedCount = Array.isArray(fmSkipped) ? fmSkipped.length : (tvd.skipped?.length || 0);
 
                     const total = tvd.seasons.reduce((acc, s) => acc + s.episodes, 0);
