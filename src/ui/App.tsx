@@ -117,10 +117,22 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     }
 
                     if (!plugin.settings.tvTrackerData) plugin.settings.tvTrackerData = {};
+                    
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+                    const fm = plugin.app.metadataCache.getFileCache(item.file)?.frontmatter;
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+                    const fmWatched = fm?.watchedEpisodes;
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+                    const fmSkipped = fm?.skippedEpisodes;
+                    
+                    const watchedArray = Array.isArray(fmWatched) ? fmWatched.map(String) : (plugin.settings.tvTrackerData[item.externalId]?.watched || []);
+                    const skippedArray = Array.isArray(fmSkipped) ? fmSkipped.map(String) : (plugin.settings.tvTrackerData[item.externalId]?.skipped || []);
+
                     plugin.settings.tvTrackerData[item.externalId] = {
                         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
                         seasons: parsedSeasons,
-                        watched: plugin.settings.tvTrackerData[item.externalId]?.watched || [],
+                        watched: watchedArray,
+                        skipped: skippedArray,
                         progress: plugin.settings.tvTrackerData[item.externalId]?.progress || 0,
                         nextEpisode: nextEp
                     };
@@ -300,9 +312,19 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                 
                 {item.type === 'TV' && item.externalId && plugin.settings.tvTrackerData[item.externalId] && (() => {
                     const tvd = plugin.settings.tvTrackerData[item.externalId];
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+                    const fm = plugin.app.metadataCache.getFileCache(item.file)?.frontmatter;
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+                    const fmWatched = fm?.watchedEpisodes;
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+                    const fmSkipped = fm?.skippedEpisodes;
+                    
+                    const watchedCount = Array.isArray(fmWatched) ? fmWatched.length : tvd.watched.length;
+                    const skippedCount = Array.isArray(fmSkipped) ? fmSkipped.length : (tvd.skipped?.length || 0);
+
                     const total = tvd.seasons.reduce((acc, s) => acc + s.episodes, 0);
-                    const watchedPct = total > 0 ? (tvd.watched.length / total) * 100 : 0;
-                    const skippedPct = total > 0 ? ((tvd.skipped?.length || 0) / total) * 100 : 0;
+                    const watchedPct = total > 0 ? (watchedCount / total) * 100 : 0;
+                    const skippedPct = total > 0 ? (skippedCount / total) * 100 : 0;
                     
                     return (
                         <div style={{ marginTop: '4px', marginBottom: '8px' }} title={`${Math.round(watchedPct + skippedPct)}% Completed`}>

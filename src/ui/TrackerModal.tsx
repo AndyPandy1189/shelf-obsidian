@@ -12,6 +12,22 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
     const [error, setError] = React.useState('');
 
     const trackerData = plugin.settings.tvTrackerData[item.externalId || ''] || { seasons: [], watched: [], skipped: [], progress: 0 };
+    
+    // Initialize state synchronously so it doesn't flicker before loadData
+    React.useEffect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+        const fm = plugin.app.metadataCache.getFileCache(item.file)?.frontmatter;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+        const fmWatched = fm?.watchedEpisodes;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+        const fmSkipped = fm?.skippedEpisodes;
+        
+        if (Array.isArray(fmWatched)) setWatched(new Set(fmWatched.map(String)));
+        else setWatched(new Set(trackerData.watched || []));
+        
+        if (Array.isArray(fmSkipped)) setSkipped(new Set(fmSkipped.map(String)));
+        else setSkipped(new Set(trackerData.skipped || []));
+    }, [item.file, plugin.app.metadataCache, trackerData.watched, trackerData.skipped]);
 
     React.useEffect(() => {
         const loadData = async (forceRefresh = false) => {
@@ -107,6 +123,11 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
         let total = 0;
         seasons.forEach(s => total += s.episodes);
         const progress = total > 0 ? Math.round(((watchedArray.length + skippedArray.length) / total) * 100) : 0;
+
+        await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+            fm.watchedEpisodes = watchedArray;
+            fm.skippedEpisodes = skippedArray;
+        });
 
         plugin.settings.tvTrackerData[item.externalId] = {
             ...plugin.settings.tvTrackerData[item.externalId],
