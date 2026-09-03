@@ -117,8 +117,6 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
                 }
 
                 setSeasons(currentSeasons);
-                setWatched(new Set(trackerData.watched || []));
-                setSkipped(new Set(trackerData.skipped || []));
             } catch (err: ShelfAny) {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Dynamic API response
                 setError(err.message || 'Error loading tracker data');
