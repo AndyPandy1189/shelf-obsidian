@@ -1,7 +1,7 @@
 {
     "id":  "shelf",
     "name":  "Shelf",
-    "version":  "1.0.18",
+    "version":  "1.0.19",
     "minAppVersion":  "1.6.0",
     "description":  "A Progressive Web App style media library.",
     "author":  "AndyPandy",

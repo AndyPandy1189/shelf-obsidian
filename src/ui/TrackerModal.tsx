@@ -23,11 +23,19 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
             const fmSkipped = fm?.skippedEpisodes;
             
-            if (Array.isArray(fmWatched)) setWatched(new Set(fmWatched.map(String)));
-            else setWatched(new Set(trackerData.watched || []));
+            if (fmWatched !== undefined && fmWatched !== null) {
+                if (Array.isArray(fmWatched)) setWatched(new Set(fmWatched.map(String)));
+                else setWatched(new Set([String(fmWatched)]));
+            } else {
+                setWatched(new Set(trackerData.watched || []));
+            }
             
-            if (Array.isArray(fmSkipped)) setSkipped(new Set(fmSkipped.map(String)));
-            else setSkipped(new Set(trackerData.skipped || []));
+            if (fmSkipped !== undefined && fmSkipped !== null) {
+                if (Array.isArray(fmSkipped)) setSkipped(new Set(fmSkipped.map(String)));
+                else setSkipped(new Set([String(fmSkipped)]));
+            } else {
+                setSkipped(new Set(trackerData.skipped || []));
+            }
         };
 
         loadFromCache();
