@@ -13,20 +13,34 @@ export const TrackerModal = ({ plugin, item, onClose }: { plugin: ShelfPlugin, i
 
     const trackerData = plugin.settings.tvTrackerData[item.externalId || ''] || { seasons: [], watched: [], skipped: [], progress: 0 };
     
-    // Initialize state synchronously so it doesn't flicker before loadData
+    // Load state from frontmatter and listen to external changes (like Obsidian Sync)
     React.useEffect(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-        const fm = plugin.app.metadataCache.getFileCache(item.file)?.frontmatter;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-        const fmWatched = fm?.watchedEpisodes;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-        const fmSkipped = fm?.skippedEpisodes;
-        
-        if (Array.isArray(fmWatched)) setWatched(new Set(fmWatched.map(String)));
-        else setWatched(new Set(trackerData.watched || []));
-        
-        if (Array.isArray(fmSkipped)) setSkipped(new Set(fmSkipped.map(String)));
-        else setSkipped(new Set(trackerData.skipped || []));
+        const loadFromCache = () => {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+            const fm = plugin.app.metadataCache.getFileCache(item.file)?.frontmatter;
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+            const fmWatched = fm?.watchedEpisodes;
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+            const fmSkipped = fm?.skippedEpisodes;
+            
+            if (Array.isArray(fmWatched)) setWatched(new Set(fmWatched.map(String)));
+            else setWatched(new Set(trackerData.watched || []));
+            
+            if (Array.isArray(fmSkipped)) setSkipped(new Set(fmSkipped.map(String)));
+            else setSkipped(new Set(trackerData.skipped || []));
+        };
+
+        loadFromCache();
+
+        const eventRef = plugin.app.metadataCache.on('changed', (changedFile) => {
+            if (changedFile.path === item.file.path) {
+                loadFromCache();
+            }
+        });
+
+        return () => {
+            plugin.app.metadataCache.offref(eventRef);
+        };
     }, [item.file, plugin.app.metadataCache, trackerData.watched, trackerData.skipped]);
 
     React.useEffect(() => {
