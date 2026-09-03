@@ -125,8 +125,8 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
                     const fmSkipped = fm?.skippedEpisodes;
                     
-                    const watchedArray = Array.isArray(fmWatched) ? fmWatched.map(String) : (plugin.settings.tvTrackerData[item.externalId]?.watched || []);
-                    const skippedArray = Array.isArray(fmSkipped) ? fmSkipped.map(String) : (plugin.settings.tvTrackerData[item.externalId]?.skipped || []);
+                    const watchedArray = fmWatched !== undefined && fmWatched !== null ? (Array.isArray(fmWatched) ? fmWatched.map(String) : [String(fmWatched)]) : (plugin.settings.tvTrackerData[item.externalId]?.watched || []);
+                    const skippedArray = fmSkipped !== undefined && fmSkipped !== null ? (Array.isArray(fmSkipped) ? fmSkipped.map(String) : [String(fmSkipped)]) : (plugin.settings.tvTrackerData[item.externalId]?.skipped || []);
 
                     plugin.settings.tvTrackerData[item.externalId] = {
                         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
@@ -319,8 +319,8 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
                     const fmSkipped = fm?.skippedEpisodes;
                     
-                    const watchedCount = Array.isArray(fmWatched) ? fmWatched.length : (tvd.watched?.length || 0);
-                    const skippedCount = Array.isArray(fmSkipped) ? fmSkipped.length : (tvd.skipped?.length || 0);
+                    const watchedCount = fmWatched !== undefined && fmWatched !== null ? (Array.isArray(fmWatched) ? fmWatched.length : 1) : (tvd.watched?.length || 0);
+                    const skippedCount = fmSkipped !== undefined && fmSkipped !== null ? (Array.isArray(fmSkipped) ? fmSkipped.length : 1) : (tvd.skipped?.length || 0);
 
                     const total = tvd.seasons.reduce((acc, s) => acc + s.episodes, 0);
                     const watchedPct = total > 0 ? (watchedCount / total) * 100 : 0;
