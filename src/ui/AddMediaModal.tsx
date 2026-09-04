@@ -52,17 +52,20 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
             } else if (type === 'Comics & Manga') {
                 const res = await searchComicVine(query, plugin.settings.comicVineApiKey);
                 setResults(res.results.map((r: ShelfAny) => {
-                    const isIssue = r.resource_type === 'issue';
-                    const tag = isIssue ? `[Issue #${r.issue_number || '?'}]` : '[Volume]';
-                    const title = r.name || (r.volume && r.volume.name ? `${r.volume.name} #${r.issue_number}` : 'Unknown');
+                    const isIssue = r.resource_type === 'issue' || (r.api_detail_url && r.api_detail_url.includes('/issue/')) || !!r.issue_number;
+                    const tag = isIssue ? `[Issue #${r.issue_number || '?'}]` : (r.start_year ? `[Volume ${r.start_year}]` : '[Volume]');
+                    const titleName = (r.name && r.name.trim()) ? r.name.trim() : (r.volume && r.volume.name ? r.volume.name.trim() : 'Unknown');
+                    
+                    const rawDate = r.cover_date || r.start_year || '';
+                    const prefixedId = isIssue ? `4000-${r.id}` : `4050-${r.id}`;
                     
                     // Simple translation/language heuristic (ComicVine usually lists publisher or name variations)
                     // If a volume has multiple languages, it's often in the title like "Attack on Titan (German)"
                     return {
-                        title: `${tag} ${title}`,
+                        title: `${titleName} ${tag}`,
                         coverUrl: r.image && (r.image.medium_url || r.image.super_url || r.image.original_url) || '',
-                        releaseDate: r.cover_date || r.start_year || '',
-                        externalId: r.id.toString(),
+                        releaseDate: rawDate.length > 10 ? rawDate.substring(0, 10) : rawDate,
+                        externalId: prefixedId,
                         overview: r.deck || '',
                         publisher: r.publisher ? r.publisher.name : '',
                         resourceType: r.resource_type,

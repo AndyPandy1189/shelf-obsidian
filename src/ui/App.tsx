@@ -191,25 +191,46 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                 await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
                     const r = details.results;
                     
-                    // Same heuristics as AddMediaModal for title
-                    const isIssue = r.resource_type === 'issue';
-                    const tag = isIssue ? `[Issue #${r.issue_number || '?'}]` : '[Volume]';
-                    const titleName = r.name || (r.volume && r.volume.name ? `${r.volume.name} #${r.issue_number}` : 'Unknown');
+                    // We determine issue/volume based on ID if resource_type is missing from details endpoint
+                    const isIssue = r.resource_type === 'issue' || item.externalId.startsWith('4000-') || (r.api_detail_url && r.api_detail_url.includes('/issue/')) || !!r.issue_number;
+                    const tag = isIssue ? `[Issue #${r.issue_number || '?'}]` : (r.start_year ? `[Volume ${r.start_year}]` : '[Volume]');
+                    const titleName = (r.name && r.name.trim()) ? r.name.trim() : (r.volume && r.volume.name ? r.volume.name.trim() : 'Unknown');
                     fm[t('title')] = `${titleName} ${tag}`;
                     
-                    if (r.character_credits) fm[t('characters')] = r.character_credits.map((c: any) => c.name);
-                    if (r.person_credits) fm[t('author')] = r.person_credits.map((c: any) => c.name);
-                    if (r.publisher) fm[t('publisher')] = r.publisher.name;
-                    if (r.issue_number) fm[t('issueNumber')] = r.issue_number;
-                    if (r.start_year) fm[t('releaseDate')] = r.start_year;
-                    if (r.cover_date) {
-                        fm[t('releaseDate')] = r.cover_date.length > 10 ? r.cover_date.substring(0, 10) : r.cover_date;
+                    const mapped = (variable: string) => {
+                        const regex = new RegExp(`^\\s*([^:\\n]+):.*\\{\\{${variable}\\}\\}`, 'm');
+                        const match = plugin.settings.comicMangaTemplate.match(regex);
+                        return match ? match[1].trim() : null;
+                    };
+                    
+                    const charKey = mapped('characters');
+                    if (r.character_credits && charKey) fm[charKey] = r.character_credits.map((c: any) => c.name);
+                    
+                    const authorKey = mapped('author');
+                    if (r.person_credits && authorKey) fm[authorKey] = r.person_credits.map((c: any) => c.name);
+                    
+                    const pubKey = mapped('publisher');
+                    if (r.publisher && pubKey) fm[pubKey] = r.publisher.name;
+                    
+                    const issueKey = mapped('issueNumber');
+                    if (r.issue_number && issueKey) fm[issueKey] = r.issue_number;
+                    
+                    const dateKey = mapped('releaseDate');
+                    if (dateKey) {
+                        if (r.cover_date) fm[dateKey] = r.cover_date.length > 10 ? r.cover_date.substring(0, 10) : r.cover_date;
+                        else if (r.start_year) fm[dateKey] = r.start_year;
                     }
-                    fm[t('releaseState')] = 'Released';
-                    if (r.image && (r.image.medium_url || r.image.super_url || r.image.original_url)) {
-                        fm[t('posterImage')] = r.image.medium_url || r.image.super_url || r.image.original_url;
+                    
+                    const stateKey = mapped('releaseState');
+                    if (stateKey) fm[stateKey] = 'Released';
+                    
+                    const posterKey = mapped('posterImage');
+                    if (r.image && (r.image.medium_url || r.image.super_url || r.image.original_url) && posterKey) {
+                        fm[posterKey] = r.image.medium_url || r.image.super_url || r.image.original_url;
                     }
-                    if (r.deck) fm[t('overview')] = r.deck;
+                    
+                    const overviewKey = mapped('overview');
+                    if (r.deck && overviewKey) fm[overviewKey] = r.deck;
                 });
                 return true;
             }
