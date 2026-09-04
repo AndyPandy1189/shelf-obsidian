@@ -8,7 +8,7 @@ export interface MediaItem {
     id: string; // The file path
     file: TFile;
     title: string;
-    type: 'Movies' | 'TV' | 'Games' | 'Books' | 'Unknown';
+    
     status: 'Wishlist' | 'Active' | 'Completed' | 'TBD';
     coverUrl?: string;
     releaseDate?: string;
@@ -102,13 +102,15 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
     const tvFolder = String(settings.tvDestinationFolder).toLowerCase();
     const gameFolder = String(settings.gameDestinationFolder).toLowerCase();
     const bookFolder = String(settings.bookDestinationFolder).toLowerCase();
+    const comicMangaFolder = String(settings.comicMangaDestinationFolder).toLowerCase();
 
     const isInMovie = movieFolder && lowerPath.includes(movieFolder);
     const isInTv = tvFolder && lowerPath.includes(tvFolder);
     const isInGame = gameFolder && lowerPath.includes(gameFolder);
     const isInBook = bookFolder && lowerPath.includes(bookFolder);
+    const isInComicManga = comicMangaFolder && lowerPath.includes(comicMangaFolder);
 
-    if (!isInMovie && !isInTv && !isInGame && !isInBook) {
+    if (!isInMovie && !isInTv && !isInGame && !isInBook && !isInComicManga) {
         return null; // Ignore files outside of configured folders
     }
 
@@ -118,6 +120,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
     else if (isInTv) typeStr = 'TV';
     else if (isInGame) typeStr = 'Games';
     else if (isInBook) typeStr = 'Books';
+    else if (isInComicManga) typeStr = 'Comics & Manga';
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
     // Allow frontmatter to override if they share a folder (but must still be inside the folder)
@@ -129,6 +132,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         else if (strType.includes('tv') || strType.includes('show')) typeStr = 'TV';
         else if (strType.includes('game')) typeStr = 'Games';
         else if (strType.includes('book')) typeStr = 'Books';
+        else if (strType.includes('comic') || strType.includes('manga')) typeStr = 'Comics & Manga';
     }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
     

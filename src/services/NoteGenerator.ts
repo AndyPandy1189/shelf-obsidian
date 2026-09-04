@@ -9,7 +9,7 @@ export class NoteGenerator {
         this.plugin = plugin;
     }
 
-    async generateNote(type: 'Movies' | 'TV' | 'Games' | 'Books', title: string, metadata: ShelfAny) {
+    async generateNote(type: 'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga', title: string, metadata: ShelfAny) {
         let template = '';
         let destination = '';
 
@@ -29,6 +29,10 @@ export class NoteGenerator {
             case 'Books':
                 template = this.plugin.settings.bookTemplate;
                 destination = this.plugin.settings.bookDestinationFolder;
+                break;
+            case 'Comics & Manga':
+                template = this.plugin.settings.comicMangaTemplate;
+                destination = this.plugin.settings.comicMangaDestinationFolder;
                 break;
         }
 

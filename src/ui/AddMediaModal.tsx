@@ -5,11 +5,13 @@ import ShelfPlugin, { openFileRight } from '../main';
 import { searchTMDB, getTMDBDetails } from '../api/tmdb';
 import { searchGoogleBooks } from '../api/googleBooks';
 import { searchIGDB, fetchIGDBToken } from '../api/igdb';
+import { searchComicVine, getComicVineDetails } from '../api/comicVine';
 import { NoteGenerator } from '../services/NoteGenerator';
 
-export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPlugin, onClose: () => void, defaultTab?: 'Movies' | 'TV' | 'Games' | 'Books' }) => {
+export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPlugin, onClose: () => void, defaultTab?: 'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga' }) => {
     const [query, setQuery] = React.useState('');
-    const [type, setType] = React.useState<'Movies' | 'TV' | 'Games' | 'Books'>(defaultTab || 'Movies');
+    const [type, setType] = React.useState<'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga'>(defaultTab || 'Movies');
+    const [customMediaType, setCustomMediaType] = React.useState('comic');
     const [results, setResults] = React.useState<ShelfAny[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState('');
@@ -47,6 +49,26 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                     raw: r
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Dynamic API response
                 })));
+            } else if (type === 'Comics & Manga') {
+                const res = await searchComicVine(query, plugin.settings.comicVineApiKey);
+                setResults(res.results.map((r: ShelfAny) => {
+                    const isIssue = r.resource_type === 'issue';
+                    const tag = isIssue ? `[Issue #${r.issue_number || '?'}]` : '[Volume]';
+                    const title = r.name || (r.volume && r.volume.name ? `${r.volume.name} #${r.issue_number}` : 'Unknown');
+                    
+                    // Simple translation/language heuristic (ComicVine usually lists publisher or name variations)
+                    // If a volume has multiple languages, it's often in the title like "Attack on Titan (German)"
+                    return {
+                        title: `${tag} ${title}`,
+                        coverUrl: r.image && (r.image.medium_url || r.image.super_url || r.image.original_url) || '',
+                        releaseDate: r.cover_date || r.start_year || '',
+                        externalId: r.id.toString(),
+                        overview: r.deck || '',
+                        publisher: r.publisher ? r.publisher.name : '',
+                        resourceType: r.resource_type,
+                        raw: r
+                    };
+                }));
             } else if (type === 'Books') {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
                 const res = await searchGoogleBooks(query, plugin.settings.googleBooksApiKey);
@@ -260,6 +282,19 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                 } else {
                     finalMetadata.releaseState = 'Released';
                 }
+            } else if (type === 'Comics & Manga') {
+                finalMetadata.mediaType = customMediaType;
+                const details = await getComicVineDetails(result.externalId, result.resourceType, plugin.settings.comicVineApiKey);
+                if (details && details.results) {
+                    const r = details.results;
+                    if (r.character_credits) finalMetadata.characters = r.character_credits.map((c: any) => c.name);
+                    if (r.person_credits) finalMetadata.authors = r.person_credits.map((c: any) => c.name);
+                    if (r.publisher) finalMetadata.publisher = r.publisher.name;
+                    if (r.issue_number) finalMetadata.issueNumber = r.issue_number;
+                    if (r.start_year) finalMetadata.releaseDate = r.start_year;
+                    if (r.cover_date) finalMetadata.coverDate = r.cover_date;
+                }
+                finalMetadata.releaseState = 'Released';
             } else if (type === 'Books') {
                 if (result.releaseDate) {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Dynamic API response
@@ -305,7 +340,20 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                             <option value="TV">TV Shows</option>
                             <option value="Games">Games</option>
                             <option value="Books">Books</option>
+                            <option value="Comics & Manga">Comics & Manga</option>
                         </select>
+                        {type === 'Comics & Manga' && (
+                            <div style={{ marginTop: '8px' }}>
+                                <input 
+                                    type="text" 
+                                    placeholder="Media Type (e.g., comic, manga)" 
+                                    value={customMediaType}
+                                    onChange={e => setCustomMediaType(e.target.value)}
+                                    title="Custom Media Type for Frontmatter"
+                                    style={{ width: '100%', fontSize: '0.9em' }}
+                                />
+                            </div>
+                        )}
                         <div className="shelf-search-row">
                             <input 
                                 type="text" 

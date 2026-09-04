@@ -12,7 +12,7 @@ import { Notice } from 'obsidian';
 
 export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
     const items = useMediaLibrary(plugin);
-    const [activeTab, setActiveTab] = React.useState<'Movies' | 'TV' | 'Games' | 'Books' | 'Calendar'>('Movies');
+    const [activeTab, setActiveTab] = React.useState<'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga' | 'Calendar'>('Movies');
     const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
     const [trackingItem, setTrackingItem] = React.useState<MediaItem | null>(null);
     const [sortMode, setSortMode] = React.useState<'Title' | 'Release Date'>('Title');
@@ -35,6 +35,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
             else if (item.type === 'TV') template = plugin.settings.tvTemplate;
             else if (item.type === 'Games') template = plugin.settings.gameTemplate;
             else if (item.type === 'Books') template = plugin.settings.bookTemplate;
+            else if (item.type === 'Comics & Manga') template = plugin.settings.comicMangaTemplate;
             
             const regex = new RegExp(`^\\s*([^:\\n]+):.*\\{\\{${variable}\\}\\}`, 'm');
             const match = template.match(regex);
@@ -354,7 +355,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                         <option value="Not Started">Not Started</option>
                         {(item.type === 'Movies' || item.type === 'TV') && <option value="Watching">Watching</option>}
                         {item.type === 'Games' && <option value="Playing">Playing</option>}
-                        {item.type === 'Books' && <option value="Reading">Reading</option>}
+                        {(item.type === 'Books' || item.type === 'Comics & Manga') && <option value="Reading">Reading</option>}
                         <option value="Complete">Complete</option>
                         <option value="Dropped">Dropped</option>
                     </select>
@@ -514,7 +515,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
         <div className="shelf-app">
             <div className="shelf-header">
                 <div className="shelf-tabs-desktop">
-                    {['Movies', 'TV', 'Games', 'Books', 'Calendar'].map(tab => (
+                    {['Movies', 'TV', 'Games', 'Books', 'Comics & Manga', 'Calendar'].map(tab => (
                         <div 
                             key={tab} 
                             className={`shelf-tab ${activeTab === tab ? 'active' : ''}`}
@@ -530,6 +531,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                         <option value="TV">TV</option>
                         <option value="Games">Games</option>
                         <option value="Books">Books</option>
+                        <option value="Comics & Manga">Comics & Manga</option>
                         <option value="Calendar">Calendar</option>
                     </select>
                 </div>
@@ -567,7 +569,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                             <option value="Not Started">Not Started</option>
                             {(activeTab === 'Movies' || activeTab === 'TV') && <option value="Watching">Watching</option>}
                             {activeTab === 'Games' && <option value="Playing">Playing</option>}
-                            {activeTab === 'Books' && <option value="Reading">Reading</option>}
+                            {(activeTab === 'Books' || activeTab === 'Comics & Manga') && <option value="Reading">Reading</option>}
                             <option value="Complete">Complete</option>
                             <option value="Dropped">Dropped</option>
                         </select>

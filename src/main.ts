@@ -9,6 +9,10 @@ interface ShelfPluginSettings {
 	igdbClientSecret: string;
 	igdbAccessToken: string;
 	googleBooksApiKey: string;
+	comicVineApiKey: string;
+	comicMangaTemplatePath: string;
+	comicMangaDestinationFolder: string;
+	comicMangaTemplate: string;
 	movieTemplatePath: string;
 	movieDestinationFolder: string;
 	tvTemplatePath: string;
@@ -41,6 +45,10 @@ const DEFAULT_SETTINGS: ShelfPluginSettings = {
 	igdbClientSecret: '',
 	igdbAccessToken: '',
 	googleBooksApiKey: '',
+	comicVineApiKey: '',
+	comicMangaTemplatePath: '',
+	comicMangaDestinationFolder: 'Shelf/Comics',
+	comicMangaTemplate: '---\nexternalId: {{externalId}}\ntitle: {{title}}\ncreator: {{author}}\ncategories: {{categories}}\npublisher: {{publisher}}\nreleaseDate: {{releaseDate}}\nposterImage: {{posterImage}}\nrating: 0\nmediaType: comic\nstatus: Reading\n---\n',
 	movieTemplatePath: '',
 	movieDestinationFolder: 'Shelf/Movies',
 	tvTemplatePath: '',
@@ -225,6 +233,19 @@ class ShelfSettingTab extends PluginSettingTab {
 				});
 			});
 
+		new Setting(containerEl)
+			.setName('Comic Vine API Key')
+			.setDesc('Required for Comics & Manga metadata.')
+			.addText(text => {
+				text.inputEl.type = 'password';
+				text.setPlaceholder('Enter your API key')
+				.setValue(this.plugin.settings.comicVineApiKey)
+				.onChange(async (value) => {
+					this.plugin.settings.comicVineApiKey = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
 		new Setting(containerEl).setName('Folders').setHeading();
 		
 		new Setting(containerEl)
@@ -341,6 +362,42 @@ class ShelfSettingTab extends PluginSettingTab {
 				setupTextArea(text);
 			});
 		s4.settingEl.classList.add('shelf-setting-block');
+
+		new Setting(containerEl).setName('Comics & Manga Setup').setHeading();
+		
+		new Setting(containerEl)
+			.setName('Destination Folder')
+			.setDesc('Default folder to save comics & manga notes')
+			.addSearch((cb) => {
+				new FolderSuggest(this.app, cb.inputEl);
+				cb.setPlaceholder('Example: folder1/folder2')
+					.setValue(this.plugin.settings.comicMangaDestinationFolder)
+					.onChange(async (new_folder) => {
+						this.plugin.settings.comicMangaDestinationFolder = new_folder;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Custom Template Path (Optional)')
+			.setDesc('Absolute path to a template file. If empty, the fallback template below is used.')
+			.addText(text => text
+				.setPlaceholder('Templates/Comic.md')
+				.setValue(this.plugin.settings.comicMangaTemplatePath)
+				.onChange(async (value) => {
+					this.plugin.settings.comicMangaTemplatePath = value;
+					await this.plugin.saveSettings();
+				}));
+
+		const s5 = new Setting(containerEl)
+			.setName('Comics & Manga Template')
+			.setDesc(createVarsDesc('Markdown template for newly added comics. Maps metadata to frontmatter.', ['author', 'categories', 'publisher', 'releaseDate', 'issueNumber']))
+			.addTextArea(text => {
+				text.setValue(this.plugin.settings.comicMangaTemplate)
+				.onChange(async (v) => { this.plugin.settings.comicMangaTemplate = v; await this.plugin.saveSettings(); });
+				setupTextArea(text);
+			});
+		s5.settingEl.classList.add('shelf-setting-block');
 	}
 }
 
