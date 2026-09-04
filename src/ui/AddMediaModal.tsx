@@ -284,7 +284,7 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                 }
             } else if (type === 'Comics & Manga') {
                 finalMetadata.mediaType = customMediaType;
-                const details = await getComicVineDetails(result.externalId, result.resourceType, plugin.settings.comicVineApiKey);
+                const details = await getComicVineDetails(result.externalId, plugin.settings.comicVineApiKey);
                 if (details && details.results) {
                     const r = details.results;
                     if (r.character_credits) finalMetadata.characters = r.character_credits.map((c: any) => c.name);
