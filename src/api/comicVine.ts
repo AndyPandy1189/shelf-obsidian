@@ -13,10 +13,12 @@ export async function searchComicVine(query: string, apiKey: string) {
     return response.json;
 }
 
-export async function getComicVineDetails(id: string, resourceType: 'volume' | 'issue', apiKey: string) {
+export async function getComicVineDetails(id: string, apiKey: string) {
     if (!apiKey) return null;
-    const resId = resourceType === 'volume' ? `4050-${id}` : `4000-${id}`;
-    const url = `https://comicvine.gamespot.com/api/${resourceType}/${resId}/?api_key=${apiKey}&format=json`;
+    let endpoint = 'volume';
+    if (id.startsWith('4000-')) endpoint = 'issue';
+    
+    const url = `https://comicvine.gamespot.com/api/${endpoint}/${id}/?api_key=${apiKey}&format=json`;
     const response = await requestUrl({
         url: url,
         method: 'GET',

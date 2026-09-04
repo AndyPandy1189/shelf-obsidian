@@ -8,6 +8,7 @@ import { TrackerModal } from './TrackerModal';
 import { getTMDBDetails } from '../api/tmdb';
 import { getIGDBDetails, fetchIGDBToken } from '../api/igdb';
 import { getGoogleBooksDetails } from '../api/googleBooks';
+import { getComicVineDetails } from '../api/comicVine';
 import { Notice } from 'obsidian';
 
 export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
@@ -181,6 +182,34 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     } else {
                         fm[t('releaseState')] = 'Released';
                     }
+                });
+                return true;
+            }
+        } else if (item.type === 'Comics & Manga') {
+            const details = await getComicVineDetails(item.externalId, plugin.settings.comicVineApiKey);
+            if (details && details.results) {
+                await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                    const r = details.results;
+                    
+                    // Same heuristics as AddMediaModal for title
+                    const isIssue = r.resource_type === 'issue';
+                    const tag = isIssue ? `[Issue #${r.issue_number || '?'}]` : '[Volume]';
+                    const titleName = r.name || (r.volume && r.volume.name ? `${r.volume.name} #${r.issue_number}` : 'Unknown');
+                    fm[t('title')] = `${titleName} ${tag}`;
+                    
+                    if (r.character_credits) fm[t('characters')] = r.character_credits.map((c: any) => c.name);
+                    if (r.person_credits) fm[t('author')] = r.person_credits.map((c: any) => c.name);
+                    if (r.publisher) fm[t('publisher')] = r.publisher.name;
+                    if (r.issue_number) fm[t('issueNumber')] = r.issue_number;
+                    if (r.start_year) fm[t('releaseDate')] = r.start_year;
+                    if (r.cover_date) {
+                        fm[t('releaseDate')] = r.cover_date.length > 10 ? r.cover_date.substring(0, 10) : r.cover_date;
+                    }
+                    fm[t('releaseState')] = 'Released';
+                    if (r.image && (r.image.medium_url || r.image.super_url || r.image.original_url)) {
+                        fm[t('posterImage')] = r.image.medium_url || r.image.super_url || r.image.original_url;
+                    }
+                    if (r.deck) fm[t('overview')] = r.deck;
                 });
                 return true;
             }
