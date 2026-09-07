@@ -11,7 +11,6 @@ import { NoteGenerator } from '../services/NoteGenerator';
 export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPlugin, onClose: () => void, defaultTab?: 'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga' }) => {
     const [query, setQuery] = React.useState('');
     const [type, setType] = React.useState<'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga'>(defaultTab || 'Movies');
-    const [customMediaType, setCustomMediaType] = React.useState('comic');
     const [results, setResults] = React.useState<ShelfAny[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState('');
@@ -299,7 +298,6 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                     finalMetadata.releaseState = 'Released';
                 }
             } else if (type === 'Comics & Manga') {
-                finalMetadata.mediaType = customMediaType;
                 const details = await getComicVineDetails(result.externalId, plugin.settings.comicVineApiKey);
                 if (details && details.results) {
                     const r = details.results;
@@ -358,18 +356,7 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                             <option value="Books">Books</option>
                             <option value="Comics & Manga">Comics & Manga</option>
                         </select>
-                        {type === 'Comics & Manga' && (
-                            <div style={{ marginTop: '8px' }}>
-                                <input 
-                                    type="text" 
-                                    placeholder="Media Type (e.g., comic, manga)" 
-                                    value={customMediaType}
-                                    onChange={e => setCustomMediaType(e.target.value)}
-                                    title="Custom Media Type for Frontmatter"
-                                    style={{ width: '100%', fontSize: '0.9em' }}
-                                />
-                            </div>
-                        )}
+
                         <div className="shelf-search-row">
                             <input 
                                 type="text" 
