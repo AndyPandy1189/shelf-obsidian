@@ -194,7 +194,20 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     // We determine issue/volume based on ID if resource_type is missing from details endpoint
                     const isIssue = r.resource_type === 'issue' || item.externalId.startsWith('4000-') || (r.api_detail_url && r.api_detail_url.includes('/issue/')) || !!r.issue_number;
                     const tag = isIssue ? `[Issue #${r.issue_number || '?'}]` : (r.start_year ? `[Volume ${r.start_year}]` : '[Volume]');
-                    const titleName = (r.name && r.name.trim()) ? r.name.trim() : (r.volume && r.volume.name ? r.volume.name.trim() : 'Unknown');
+                    let titleName = 'Unknown';
+                    if (isIssue) {
+                        const volName = r.volume && r.volume.name ? r.volume.name.trim() : '';
+                        const issueName = r.name && r.name.trim() ? r.name.trim() : '';
+                        if (volName && issueName) {
+                            titleName = `${volName}: ${issueName}`;
+                        } else if (volName) {
+                            titleName = volName;
+                        } else if (issueName) {
+                            titleName = issueName;
+                        }
+                    } else {
+                        titleName = (r.name && r.name.trim()) ? r.name.trim() : (r.volume && r.volume.name ? r.volume.name.trim() : 'Unknown');
+                    }
                     fm[t('title')] = `${titleName} ${tag}`;
                     
                     const mapped = (variable: string) => {
