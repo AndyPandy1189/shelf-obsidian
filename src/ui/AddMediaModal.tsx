@@ -301,8 +301,18 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                 const details = await getComicVineDetails(result.externalId, plugin.settings.comicVineApiKey);
                 if (details && details.results) {
                     const r = details.results;
-                    if (r.character_credits) finalMetadata.characters = r.character_credits.map((c: any) => c.name);
-                    if (r.person_credits) finalMetadata.authors = r.person_credits.map((c: any) => c.name);
+                    const chars = r.character_credits || r.characters;
+                    if (chars) finalMetadata.characters = chars.map((c: any) => c.name);
+                    
+                    const peeps = r.person_credits || r.people;
+                    if (peeps) {
+                        finalMetadata.author = peeps.map((c: any) => c.name);
+                        finalMetadata.authors = finalMetadata.author; // Alias
+                    }
+                    
+                    const concepts = r.concept_credits || r.concepts;
+                    if (concepts) finalMetadata.categories = concepts.map((c: any) => c.name);
+                    
                     if (r.publisher) finalMetadata.publisher = r.publisher.name;
                     if (r.issue_number) finalMetadata.issueNumber = r.issue_number;
                     if (r.start_year) finalMetadata.releaseDate = r.start_year;
