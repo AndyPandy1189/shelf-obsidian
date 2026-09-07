@@ -54,7 +54,20 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                 setResults(res.results.map((r: ShelfAny) => {
                     const isIssue = r.resource_type === 'issue' || (r.api_detail_url && r.api_detail_url.includes('/issue/')) || !!r.issue_number;
                     const tag = isIssue ? `[Issue #${r.issue_number || '?'}]` : (r.start_year ? `[Volume ${r.start_year}]` : '[Volume]');
-                    const titleName = (r.name && r.name.trim()) ? r.name.trim() : (r.volume && r.volume.name ? r.volume.name.trim() : 'Unknown');
+                    let titleName = 'Unknown';
+                    if (isIssue) {
+                        const volName = r.volume && r.volume.name ? r.volume.name.trim() : '';
+                        const issueName = r.name && r.name.trim() ? r.name.trim() : '';
+                        if (volName && issueName) {
+                            titleName = `${volName}: ${issueName}`;
+                        } else if (volName) {
+                            titleName = volName;
+                        } else if (issueName) {
+                            titleName = issueName;
+                        }
+                    } else {
+                        titleName = (r.name && r.name.trim()) ? r.name.trim() : (r.volume && r.volume.name ? r.volume.name.trim() : 'Unknown');
+                    }
                     
                     const rawDate = r.cover_date || r.start_year || '';
                     const prefixedId = isIssue ? `4000-${r.id}` : `4050-${r.id}`;
