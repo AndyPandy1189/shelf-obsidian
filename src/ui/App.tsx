@@ -236,7 +236,8 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     
                     const dateKey = mapped('releaseDate');
                     if (dateKey) {
-                        if (r.cover_date) fm[dateKey] = r.cover_date.length > 10 ? r.cover_date.substring(0, 10) : r.cover_date;
+                        if (r.store_date) fm[dateKey] = r.store_date.length > 10 ? r.store_date.substring(0, 10) : r.store_date;
+                        else if (r.cover_date) fm[dateKey] = r.cover_date.length > 10 ? r.cover_date.substring(0, 10) : r.cover_date;
                         else if (r.start_year) fm[dateKey] = r.start_year;
                     }
                     

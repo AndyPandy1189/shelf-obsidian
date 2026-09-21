@@ -68,7 +68,7 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                         titleName = (r.name && r.name.trim()) ? r.name.trim() : (r.volume && r.volume.name ? r.volume.name.trim() : 'Unknown');
                     }
                     
-                    const rawDate = r.cover_date || r.start_year || '';
+                    const rawDate = r.store_date || r.cover_date || r.start_year || '';
                     const prefixedId = isIssue ? `4000-${r.id}` : `4050-${r.id}`;
                     
                     // Simple translation/language heuristic (ComicVine usually lists publisher or name variations)
@@ -315,7 +315,9 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
                     
                     if (r.publisher) finalMetadata.publisher = r.publisher.name;
                     if (r.issue_number) finalMetadata.issueNumber = r.issue_number;
-                    if (r.start_year) finalMetadata.releaseDate = r.start_year;
+                    if (r.store_date) finalMetadata.releaseDate = r.store_date;
+                    else if (r.cover_date) finalMetadata.releaseDate = r.cover_date;
+                    else if (r.start_year) finalMetadata.releaseDate = r.start_year;
                     if (r.cover_date) finalMetadata.coverDate = r.cover_date;
                 }
                 finalMetadata.releaseState = 'Released';
