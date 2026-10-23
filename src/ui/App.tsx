@@ -10,7 +10,7 @@ import { getTMDBDetails } from '../api/tmdb';
 import { getIGDBDetails, fetchIGDBToken } from '../api/igdb';
 import { getGoogleBooksDetails } from '../api/googleBooks';
 import { getComicVineDetails } from '../api/comicVine';
-import { getPokemonCardDetails } from '../api/tcgdex';
+import { getPokemonCardDetails, calculateFrontmatterVariantsValue } from '../api/tcgdex';
 import { Notice } from 'obsidian';
 
 export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
@@ -290,7 +290,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
         } else if (item.type === 'Collections') {
             const details = await getPokemonCardDetails(item.externalId);
             if (details) {
-                const { card, releaseDate, releaseState, coverUrl, currentValue, variants } = details;
+                const { card, releaseDate, releaseState, coverUrl, variants, variantValues } = details;
                 const todayStr = new Date().toISOString().split('T')[0];
 
                 const mapped = (variable: string) => {
@@ -321,17 +321,6 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     const illKey = mapped('illustrator');
                     if (illKey && card.illustrator) fm[illKey] = [card.illustrator];
 
-                    const valKey = mapped('currentValue') || 'currentValue';
-                    const lastUpdKey = mapped('lastValueUpdate') || 'lastValueUpdate';
-                    if (currentValue !== null) {
-                        const numVal = Number(currentValue.toFixed(2));
-                        const prevVal = fm[valKey] !== undefined ? Number(fm[valKey]) : NaN;
-                        fm[valKey] = numVal;
-                        if (prevVal !== numVal || !fm[lastUpdKey]) {
-                            fm[lastUpdKey] = todayStr;
-                        }
-                    }
-
                     if (variants && typeof variants === 'object') {
                         for (const vKey of Object.keys(variants)) {
                             const existingVal = fm[vKey];
@@ -341,8 +330,20 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                                 const parsed = parseInt(String(existingVal), 10);
                                 fm[vKey] = isNaN(parsed) ? 0 : Math.max(0, parsed);
                             }
+                            const valProp = `${vKey}Value`;
+                            const unitVal = variantValues?.[valProp];
+                            if (typeof unitVal === 'number' && !isNaN(unitVal)) {
+                                fm[valProp] = Number(unitVal.toFixed(2));
+                            } else if (fm[valProp] === undefined) {
+                                fm[valProp] = 0;
+                            }
                         }
                     }
+
+                    const valKey = mapped('currentValue') || 'currentValue';
+                    const lastUpdKey = mapped('lastValueUpdate') || 'lastValueUpdate';
+                    fm[valKey] = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
+                    fm[lastUpdKey] = todayStr;
                 });
                 return true;
             }

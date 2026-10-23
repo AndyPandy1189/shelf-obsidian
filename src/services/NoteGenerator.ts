@@ -122,7 +122,7 @@ export class NoteGenerator {
         let content = template.replace(/"\{\{currentValue\}\}"/g, '{{currentValue}}');
 
         for (const [key, value] of Object.entries(metaObj)) {
-            if (key === 'raw' || key === 'variants') continue;
+            if (key === 'raw' || key === 'variants' || key === 'variantValues') continue;
 
             const bracketRegex = new RegExp(`\\[\\{\\{${key}\\}\\}\\]`, 'g');
             if (bracketRegex.test(content)) {
@@ -148,10 +148,19 @@ export class NoteGenerator {
 
         if (metaObj.variants && typeof metaObj.variants === 'object') {
             const variantLines: string[] = [];
+            const vValues = (metaObj.variantValues && typeof metaObj.variantValues === 'object')
+                ? (metaObj.variantValues as Record<string, number>)
+                : {};
             for (const [vKey, vCount] of Object.entries(metaObj.variants as Record<string, number>)) {
                 const keyExistsRegex = new RegExp(`^\\s*${vKey}\\s*:`, 'm');
                 if (!keyExistsRegex.test(content)) {
                     variantLines.push(`${vKey}: ${typeof vCount === 'number' ? vCount : 0}`);
+                }
+                const valKey = `${vKey}Value`;
+                const valExistsRegex = new RegExp(`^\\s*${valKey}\\s*:`, 'm');
+                if (!valExistsRegex.test(content)) {
+                    const unitVal = vValues[valKey];
+                    variantLines.push(`${valKey}: ${typeof unitVal === 'number' ? Number(unitVal.toFixed(2)) : 0}`);
                 }
             }
             if (variantLines.length > 0) {

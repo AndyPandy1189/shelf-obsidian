@@ -209,6 +209,137 @@ export function extractApplicableVariants(card: ShelfAny): Record<string, number
     return result;
 }
 
+function extractPriceFromEntry(entry: ShelfAny): number | null {
+    if (!entry || typeof entry !== 'object') return null;
+    const price = entry.marketPrice ?? entry.market ?? entry.midPrice ?? entry.mid ?? entry.lowPrice ?? entry.low;
+    if (typeof price === 'number' && !isNaN(price)) {
+        return Number(price.toFixed(2));
+    }
+    return null;
+}
+
+export function extractVariantValues(card: ShelfAny, applicableVariants?: Record<string, number>): Record<string, number> {
+    const vars = applicableVariants || extractApplicableVariants(card);
+    const values: Record<string, number> = {};
+    const tcgpRaw = card?.pricing?.tcgplayer;
+    const tcgp = tcgpRaw && typeof tcgpRaw === 'object'
+        ? (tcgpRaw.prices && typeof tcgpRaw.prices === 'object' ? tcgpRaw.prices : tcgpRaw)
+        : {};
+    const cm = card?.pricing?.cardmarket && typeof card.pricing.cardmarket === 'object'
+        ? card.pricing.cardmarket
+        : {};
+    const detailed: ShelfAny[] = Array.isArray(card?.variants_detailed) ? card.variants_detailed : [];
+
+    for (const vKey of Object.keys(vars)) {
+        const valueProp = `${vKey}Value`;
+        let val: number | null = null;
+
+        if (vKey === 'variantNormal') {
+            val = extractPriceFromEntry(tcgp['normal']) ?? extractPriceFromEntry(tcgp['unlimited']);
+            if (val === null) {
+                for (const d of detailed) {
+                    if (d?.type === 'normal' && !(Array.isArray(d?.stamp) && d.stamp.includes('1st-edition'))) {
+                        const dTcgp = d?.pricing?.tcgplayer;
+                        val = extractPriceFromEntry(dTcgp?.normal) ?? extractPriceFromEntry(dTcgp?.unlimited);
+                        if (val !== null) break;
+                    }
+                }
+            }
+            if (val === null) {
+                const cmVal = cm.trend ?? cm.avg;
+                if (typeof cmVal === 'number' && !isNaN(cmVal)) val = Number(cmVal.toFixed(2));
+            }
+        } else if (vKey === 'variantHolo') {
+            val = extractPriceFromEntry(tcgp['holofoil']) ?? extractPriceFromEntry(tcgp['unlimited-holofoil']);
+            if (val === null) {
+                for (const d of detailed) {
+                    if (d?.type === 'holo' && d?.size !== 'jumbo' && !(Array.isArray(d?.stamp) && d.stamp.includes('1st-edition'))) {
+                        const dTcgp = d?.pricing?.tcgplayer;
+                        val = extractPriceFromEntry(dTcgp?.holofoil) ?? extractPriceFromEntry(dTcgp?.['unlimited-holofoil']);
+                        if (val !== null) break;
+                    }
+                }
+            }
+            if (val === null) {
+                for (const d of detailed) {
+                    if (d?.type === 'holo' && d?.size !== 'jumbo' && !(Array.isArray(d?.stamp) && d.stamp.includes('1st-edition'))) {
+                        const dCm = d?.pricing?.cardmarket;
+                        const cmVal = dCm?.trend ?? dCm?.avg;
+                        if (typeof cmVal === 'number' && !isNaN(cmVal)) {
+                            val = Number(cmVal.toFixed(2));
+                            break;
+                        }
+                    }
+                }
+            }
+            if (val === null) {
+                const cmVal = cm['trend-holo'] ?? cm['avg-holo'] ?? cm.trend ?? cm.avg;
+                if (typeof cmVal === 'number' && !isNaN(cmVal)) val = Number(cmVal.toFixed(2));
+            }
+        } else if (vKey === 'variantReverse') {
+            val = extractPriceFromEntry(tcgp['reverse-holofoil']) ?? extractPriceFromEntry(tcgp['reverseHolofoil']);
+            if (val === null) {
+                for (const d of detailed) {
+                    if (d?.type === 'reverse') {
+                        const dTcgp = d?.pricing?.tcgplayer;
+                        val = extractPriceFromEntry(dTcgp?.['reverse-holofoil']) ?? extractPriceFromEntry(dTcgp?.reverseHolofoil);
+                        if (val !== null) break;
+                    }
+                }
+            }
+            if (val === null) {
+                const cmVal = cm['trend-holo'] ?? cm['avg-holo'];
+                if (typeof cmVal === 'number' && !isNaN(cmVal)) val = Number(cmVal.toFixed(2));
+            }
+        } else if (vKey === 'variantFirstEdition') {
+            val =
+                extractPriceFromEntry(tcgp['1st-edition-holofoil']) ??
+                extractPriceFromEntry(tcgp['1st-edition']) ??
+                extractPriceFromEntry(tcgp['1stEditionHolofoil']) ??
+                extractPriceFromEntry(tcgp['1stEdition']);
+            if (val === null) {
+                for (const d of detailed) {
+                    if (Array.isArray(d?.stamp) && d.stamp.includes('1st-edition')) {
+                        const dTcgp = d?.pricing?.tcgplayer;
+                        val =
+                            extractPriceFromEntry(dTcgp?.['1st-edition-holofoil']) ??
+                            extractPriceFromEntry(dTcgp?.['1st-edition']);
+                        if (val === null) {
+                            const dCm = d?.pricing?.cardmarket;
+                            const cmVal = dCm?.trend ?? dCm?.avg;
+                            if (typeof cmVal === 'number' && !isNaN(cmVal)) val = Number(cmVal.toFixed(2));
+                        }
+                        if (val !== null) break;
+                    }
+                }
+            }
+        } else {
+            val = extractUsdPrice(card);
+        }
+
+        values[valueProp] = val !== null ? val : 0;
+    }
+
+    return values;
+}
+
+export function calculateFrontmatterVariantsValue(fm: Record<string, ShelfAny>): number {
+    if (!fm || typeof fm !== 'object') return 0;
+    let sum = 0;
+    for (const [k, v] of Object.entries(fm)) {
+        if (k.startsWith('variant') && !k.endsWith('Value') && k.length > 7) {
+            const count = typeof v === 'number' ? v : parseInt(String(v), 10);
+            const qty = isNaN(count) ? 0 : Math.max(0, count);
+            const rawUnit = fm[`${k}Value`];
+            const unitVal = typeof rawUnit === 'number' ? rawUnit : parseFloat(String(rawUnit ?? '0'));
+            if (qty > 0 && !isNaN(unitVal)) {
+                sum += qty * unitVal;
+            }
+        }
+    }
+    return Number(sum.toFixed(2));
+}
+
 export async function getPokemonCardDetails(cardId: string): Promise<{
     card: ShelfAny;
     releaseDate: string;
@@ -216,6 +347,7 @@ export async function getPokemonCardDetails(cardId: string): Promise<{
     coverUrl: string;
     currentValue: number | null;
     variants: Record<string, number>;
+    variantValues: Record<string, number>;
     markdownBody: string;
 } | null> {
     if (!cardId) return null;
@@ -238,9 +370,10 @@ export async function getPokemonCardDetails(cardId: string): Promise<{
     // Calculate if release >= Today (Upcoming if strictly in the future, or Released)
     const releaseState: 'Released' | 'Upcoming' = (releaseDate && releaseDate > todayStr) ? 'Upcoming' : 'Released';
     const coverUrl = formatTcgdexImageUrl(card.image, 'high', 'webp');
-    const currentValue = extractUsdPrice(card);
     const variants = extractApplicableVariants(card);
-    const markdownBody = buildPokemonCardMarkdownBody(card, releaseDate, coverUrl, currentValue);
+    const variantValues = extractVariantValues(card, variants);
+    const currentValue = 0;
+    const markdownBody = buildPokemonCardMarkdownBody(card, releaseDate, coverUrl, variants, variantValues);
 
     return {
         card,
@@ -249,6 +382,7 @@ export async function getPokemonCardDetails(cardId: string): Promise<{
         coverUrl,
         currentValue,
         variants,
+        variantValues,
         markdownBody
     };
 }
@@ -257,7 +391,8 @@ export function buildPokemonCardMarkdownBody(
     card: ShelfAny,
     releaseDate: string,
     coverUrl: string,
-    currentValue: number | null
+    variants?: Record<string, number>,
+    variantValues?: Record<string, number>
 ): string {
     const lines: string[] = [];
 
@@ -309,8 +444,13 @@ export function buildPokemonCardMarkdownBody(
     if (card.regulationMark) {
         lines.push(`| **Regulation Mark** | ${card.regulationMark} |`);
     }
-    if (currentValue !== null) {
-        lines.push(`| **Market Price (USD)** | $${currentValue.toFixed(2)} |`);
+    if (variants && variantValues) {
+        for (const vKey of Object.keys(variants)) {
+            const unitVal = variantValues[`${vKey}Value`];
+            if (typeof unitVal === 'number') {
+                lines.push(`| **${formatVariantLabel(vKey)} Value** | $${unitVal.toFixed(2)} |`);
+            }
+        }
     }
 
     if (card.description) {

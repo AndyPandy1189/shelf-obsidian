@@ -28,6 +28,7 @@ export interface MediaItem {
     currentValue?: number;
     lastValueUpdate?: string;
     variants?: Record<string, number>;
+    variantValues?: Record<string, number>;
 }
 
 // React Hook to subscribe to Obsidian metadata changes
@@ -203,16 +204,26 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
     }
 
     let variants: Record<string, number> | undefined = undefined;
+    let variantValues: Record<string, number> | undefined = undefined;
     if (isInCollections && fm && typeof fm === 'object') {
         const parsedVariants: Record<string, number> = {};
+        const parsedVariantValues: Record<string, number> = {};
         for (const [k, v] of Object.entries(fm as Record<string, ShelfAny>)) {
-            if (k.startsWith('variant') && k.length > 7 && v !== undefined && v !== null) {
+            if (k.startsWith('variant') && !k.endsWith('Value') && k.length > 7 && v !== undefined && v !== null) {
                 const count = typeof v === 'number' ? v : parseInt(String(v), 10);
                 parsedVariants[k] = isNaN(count) ? 0 : Math.max(0, count);
+            } else if (k.startsWith('variant') && k.endsWith('Value') && k.length > 12 && v !== undefined && v !== null && String(v).trim() !== '') {
+                const val = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.-]/g, ''));
+                if (!isNaN(val)) {
+                    parsedVariantValues[k] = Number(val.toFixed(2));
+                }
             }
         }
         if (Object.keys(parsedVariants).length > 0) {
             variants = parsedVariants;
+        }
+        if (Object.keys(parsedVariantValues).length > 0) {
+            variantValues = parsedVariantValues;
         }
     }
 
@@ -239,6 +250,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         currentValue: parsedValue,
         lastValueUpdate: parseStr(fm[t('lastValueUpdate')] || fm['lastValueUpdate']),
         variants,
+        variantValues,
     };
 }
 

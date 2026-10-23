@@ -9,7 +9,8 @@ import {
     formatTcgdexLogoUrl,
     wildcardMatch,
     formatVariantLabel,
-    VARIANT_KEY_ORDER
+    VARIANT_KEY_ORDER,
+    calculateFrontmatterVariantsValue
 } from '../api/tcgdex';
 import { AddToCollectionModal } from './AddToCollectionModal';
 
@@ -212,7 +213,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
 
     const backfilledCardIdsRef = React.useRef<Set<string>>(new Set());
 
-    // Backfill applicable variant* properties for any existing TCG cards in the active binder that don't have them yet
+    // Backfill applicable variant* and variant*Value properties for any existing TCG cards in the active binder that don't have them yet
     React.useEffect(() => {
         if (!activeBinder || activeBinder.collectionType !== 'tcg') return;
         let cancelled = false;
@@ -221,7 +222,12 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             i =>
                 normalizePath(i.collectionFolder || '').toLowerCase() === normActive &&
                 i.externalId &&
-                (!i.variants || Object.keys(i.variants).length === 0) &&
+                (
+                    !i.variants ||
+                    Object.keys(i.variants).length === 0 ||
+                    !i.variantValues ||
+                    Object.keys(i.variantValues).length === 0
+                ) &&
                 !backfilledCardIdsRef.current.has(i.id)
         );
         if (cardsMissingVariants.length === 0) return;
@@ -238,7 +244,13 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                 if (fm[vKey] === undefined || fm[vKey] === null || fm[vKey] === '') {
                                     fm[vKey] = 0;
                                 }
+                                const valProp = `${vKey}Value`;
+                                if (fm[valProp] === undefined || fm[valProp] === null || fm[valProp] === '') {
+                                    const unitVal = details.variantValues?.[valProp];
+                                    fm[valProp] = typeof unitVal === 'number' ? Number(unitVal.toFixed(2)) : 0;
+                                }
                             }
+                            fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
                         });
                     }
                 } catch (e) {
@@ -250,6 +262,37 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
         return () => {
             cancelled = true;
         };
+    }, [activeBinder, collectionItems, plugin]);
+
+    // Ensure currentValue property stays equal to the sum of owned variant values if edited manually in YAML
+    React.useEffect(() => {
+        if (!activeBinder || activeBinder.collectionType !== 'tcg') return;
+        const normActive = normalizePath(activeBinder.folderPath).toLowerCase();
+        const binderCards = collectionItems.filter(
+            i =>
+                normalizePath(i.collectionFolder || '').toLowerCase() === normActive &&
+                i.variants &&
+                Object.keys(i.variants).length > 0 &&
+                i.variantValues &&
+                Object.keys(i.variantValues).length > 0
+        );
+        for (const item of binderCards) {
+            let expectedSum = 0;
+            for (const [vKey, vCount] of Object.entries(item.variants!)) {
+                const qty = typeof vCount === 'number' && !isNaN(vCount) ? Math.max(0, vCount) : 0;
+                const unitVal = item.variantValues?.[`${vKey}Value`] ?? 0;
+                if (qty > 0 && typeof unitVal === 'number' && !isNaN(unitVal)) {
+                    expectedSum += qty * unitVal;
+                }
+            }
+            const roundedExpected = Number(expectedSum.toFixed(2));
+            const currentVal = item.currentValue !== undefined ? Number(item.currentValue.toFixed(2)) : NaN;
+            if (currentVal !== roundedExpected) {
+                void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                    fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
+                });
+            }
+        }
     }, [activeBinder, collectionItems, plugin]);
 
     const handleRefreshBinder = async (binderItems: MediaItem[]) => {
@@ -399,8 +442,8 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                             : binderItems.length;
                         const pct = totalTarget > 0 ? Math.min(100, Math.round((collectedCount / totalTarget) * 100)) : 0;
 
-                        // Collection value sums ONLY cards marked in collection (collection: true)
-                        const totalValue = collectedItems.reduce((sum, i) => sum + (i.currentValue || 0), 0);
+                        // Collection value is the sum of currentValue across the cards in the collection
+                        const totalValue = binderItems.reduce((sum, i) => sum + (i.currentValue || 0), 0);
                         const fallbackCover = binderItems.find(i => i.coverUrl)?.coverUrl;
                         const displayCover = binder.coverUrl || fallbackCover;
 
@@ -482,7 +525,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
         ? activeBinder.totalCardsInSet
         : binderItems.length;
     const pctCollected = totalTarget > 0 ? Math.min(100, Math.round((collectedCount / totalTarget) * 100)) : 0;
-    const collectionValue = collectedItems.reduce((sum, i) => sum + (i.currentValue || 0), 0);
+    const collectionValue = binderItems.reduce((sum, i) => sum + (i.currentValue || 0), 0);
 
     // Filter & Sort items inside the binder
     let processedItems = [...binderItems];
@@ -844,137 +887,152 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                             borderTop: '1px solid var(--background-modifier-border)'
                                         }}
                                     >
-                                        {variantEntries.map(([vKey, vCount]) => (
-                                            <div
-                                                key={vKey}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'space-between',
-                                                    fontSize: '11px',
-                                                    color: 'var(--text-normal)'
-                                                }}
-                                            >
-                                                <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
-                                                    {formatVariantLabel(vKey)}
-                                                </span>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            const nextVal = Math.max(0, (vCount || 0) - 1);
-                                                            void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
-                                                                fm[vKey] = nextVal;
-                                                            });
-                                                        }}
-                                                        disabled={!vCount || vCount <= 0}
-                                                        style={{
-                                                            width: '20px',
-                                                            height: '20px',
-                                                            padding: 0,
-                                                            borderRadius: '4px',
-                                                            border: '1px solid var(--background-modifier-border)',
-                                                            backgroundColor: 'var(--background-primary)',
-                                                            color: 'var(--text-normal)',
-                                                            cursor: (!vCount || vCount <= 0) ? 'not-allowed' : 'pointer',
-                                                            opacity: (!vCount || vCount <= 0) ? 0.4 : 1,
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            fontWeight: 700,
-                                                            lineHeight: 1
-                                                        }}
-                                                        title={`Decrease ${formatVariantLabel(vKey)} (${vKey})`}
-                                                    >
-                                                        −
-                                                    </button>
-                                                    <span style={{ minWidth: '16px', textAlign: 'center', fontWeight: 600 }}>
-                                                        {vCount || 0}
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            const nextVal = (vCount || 0) + 1;
-                                                            void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
-                                                                fm[vKey] = nextVal;
-                                                            });
-                                                        }}
-                                                        style={{
-                                                            width: '20px',
-                                                            height: '20px',
-                                                            padding: 0,
-                                                            borderRadius: '4px',
-                                                            border: '1px solid var(--background-modifier-border)',
-                                                            backgroundColor: 'var(--background-primary)',
-                                                            color: 'var(--text-normal)',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            fontWeight: 700,
-                                                            lineHeight: 1
-                                                        }}
-                                                        title={`Increase ${formatVariantLabel(vKey)} (${vKey})`}
-                                                    >
-                                                        +
-                                                    </button>
+                                        {variantEntries.map(([vKey, vCount]) => {
+                                            const unitVal = item.variantValues?.[`${vKey}Value`];
+                                            return (
+                                                <div
+                                                    key={vKey}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        fontSize: '11px',
+                                                        color: 'var(--text-normal)',
+                                                        gap: '4px'
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0, overflow: 'hidden' }}>
+                                                        <span style={{ color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            {formatVariantLabel(vKey)}
+                                                        </span>
+                                                        <span style={{ color: '#22c55e', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                                            {unitVal !== undefined ? `$${unitVal.toFixed(2)}` : '—'}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const nextVal = Math.max(0, (vCount || 0) - 1);
+                                                                void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                                                                    fm[vKey] = nextVal;
+                                                                    fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
+                                                                });
+                                                            }}
+                                                            disabled={!vCount || vCount <= 0}
+                                                            style={{
+                                                                width: '20px',
+                                                                height: '20px',
+                                                                padding: 0,
+                                                                borderRadius: '4px',
+                                                                border: '1px solid var(--background-modifier-border)',
+                                                                backgroundColor: 'var(--background-primary)',
+                                                                color: 'var(--text-normal)',
+                                                                cursor: (!vCount || vCount <= 0) ? 'not-allowed' : 'pointer',
+                                                                opacity: (!vCount || vCount <= 0) ? 0.4 : 1,
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                fontWeight: 700,
+                                                                lineHeight: 1
+                                                            }}
+                                                            title={`Decrease ${formatVariantLabel(vKey)} (${vKey})`}
+                                                        >
+                                                            −
+                                                        </button>
+                                                        <span style={{ minWidth: '16px', textAlign: 'center', fontWeight: 600 }}>
+                                                            {vCount || 0}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const nextVal = (vCount || 0) + 1;
+                                                                void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                                                                    fm[vKey] = nextVal;
+                                                                    fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
+                                                                });
+                                                            }}
+                                                            style={{
+                                                                width: '20px',
+                                                                height: '20px',
+                                                                padding: 0,
+                                                                borderRadius: '4px',
+                                                                border: '1px solid var(--background-modifier-border)',
+                                                                backgroundColor: 'var(--background-primary)',
+                                                                color: 'var(--text-normal)',
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                fontWeight: 700,
+                                                                lineHeight: 1
+                                                            }}
+                                                            title={`Increase ${formatVariantLabel(vKey)} (${vKey})`}
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 );
                             })()}
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '6px' }}>
-                                <div
-                                    style={{
-                                        fontSize: '13px',
-                                        fontWeight: 700,
-                                        color: item.currentValue !== undefined ? '#22c55e' : 'var(--text-muted)'
-                                    }}
-                                    title={item.lastValueUpdate ? `Last updated: ${item.lastValueUpdate}` : 'Market Value (USD)'}
-                                >
-                                    {item.currentValue !== undefined ? `$${item.currentValue.toFixed(2)}` : '—'}
-                                </div>
+                            {(!isTcgBinder || item.externalId) && (
+                                <div style={{ display: 'flex', justifyContent: isTcgBinder ? 'flex-end' : 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '6px' }}>
+                                    {!isTcgBinder && (
+                                        <div
+                                            style={{
+                                                fontSize: '13px',
+                                                fontWeight: 700,
+                                                color: item.currentValue !== undefined ? '#22c55e' : 'var(--text-muted)'
+                                            }}
+                                            title={item.lastValueUpdate ? `Last updated: ${item.lastValueUpdate}` : 'Value (USD)'}
+                                        >
+                                            {item.currentValue !== undefined ? `$${item.currentValue.toFixed(2)}` : '—'}
+                                        </div>
+                                    )}
 
-                                {item.externalId && (
-                                    <button
-                                        style={{
-                                            padding: '0',
-                                            height: '24px',
-                                            width: '24px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: '50%',
-                                            border: 'none',
-                                            backgroundColor: 'var(--interactive-normal)',
-                                            cursor: 'pointer',
-                                            color: 'var(--text-muted)'
-                                        }}
-                                        onClick={(e) => {
-                                            void (async () => {
-                                                e.stopPropagation();
-                                                setIsRefreshing(true);
-                                                try {
-                                                    const ok = await onRefreshSingleItem(item);
-                                                    if (ok) new Notice(`Refreshed ${item.title}`);
-                                                    else new Notice(`Failed to refresh ${item.title}`);
-                                                } catch {
-                                                    new Notice(`Failed to refresh ${item.title}`);
-                                                } finally {
-                                                    setIsRefreshing(false);
-                                                }
-                                            })();
-                                        }}
-                                        title="Refresh Card Metadata & Value"
-                                    >
-                                        ↻
-                                    </button>
-                                )}
-                            </div>
+                                    {item.externalId && (
+                                        <button
+                                            style={{
+                                                padding: '0',
+                                                height: '24px',
+                                                width: '24px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                borderRadius: '50%',
+                                                border: 'none',
+                                                backgroundColor: 'var(--interactive-normal)',
+                                                cursor: 'pointer',
+                                                color: 'var(--text-muted)'
+                                            }}
+                                            onClick={(e) => {
+                                                void (async () => {
+                                                    e.stopPropagation();
+                                                    setIsRefreshing(true);
+                                                    try {
+                                                        const ok = await onRefreshSingleItem(item);
+                                                        if (ok) new Notice(`Refreshed ${item.title}`);
+                                                        else new Notice(`Failed to refresh ${item.title}`);
+                                                    } catch {
+                                                        new Notice(`Failed to refresh ${item.title}`);
+                                                    } finally {
+                                                        setIsRefreshing(false);
+                                                    }
+                                                })();
+                                            }}
+                                            title={item.lastValueUpdate ? `Refresh Card Metadata & Values (Last updated: ${item.lastValueUpdate})` : 'Refresh Card Metadata & Values'}
+                                        >
+                                            ↻
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
