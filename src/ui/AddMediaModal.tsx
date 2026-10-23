@@ -33,7 +33,6 @@ export const AddMediaModal = ({
     const [collectionSet, setCollectionSet] = React.useState('');
     const [setFilterQuery, setSetFilterQuery] = React.useState('');
     const [isSetDropdownOpen, setIsSetDropdownOpen] = React.useState(false);
-    const [dropdownRect, setDropdownRect] = React.useState<{ top: number; left: number; width: number } | null>(null);
     const setDropdownTriggerRef = React.useRef<HTMLDivElement | null>(null);
     const setDropdownMenuRef = React.useRef<HTMLDivElement | null>(null);
     const [pokemonSets, setPokemonSets] = React.useState<ShelfAny[]>([]);
@@ -477,12 +476,12 @@ export const AddMediaModal = ({
 
     return (
         <div className="shelf-modal-overlay">
-            <div className="shelf-modal">
+            <div className="shelf-modal" style={type === 'Collections' ? { overflow: 'visible' } : undefined}>
                 <div className="shelf-modal-header">
                     <h2>{type === 'Collections' ? 'Create a Collection' : 'Add to Library'}</h2>
                     <button className="close-btn" onClick={onClose}>&times;</button>
                 </div>
-                <div className="shelf-modal-body">
+                <div className="shelf-modal-body" style={type === 'Collections' ? { overflow: 'visible' } : undefined}>
                     <div className="shelf-search-bar" style={{ marginBottom: '16px' }}>
                         <select value={type} onChange={e => { setType(e.target.value as ShelfAny); setResults([]); setError(''); }} style={{ width: '100%' }}>
                             <option value="Movies">Movies</option>
@@ -543,14 +542,6 @@ export const AddMediaModal = ({
                                             ref={setDropdownTriggerRef}
                                             onClick={() => {
                                                 if (loadingSets) return;
-                                                if (!isSetDropdownOpen && setDropdownTriggerRef.current) {
-                                                    const rect = setDropdownTriggerRef.current.getBoundingClientRect();
-                                                    setDropdownRect({
-                                                        top: rect.bottom + 4,
-                                                        left: rect.left,
-                                                        width: rect.width,
-                                                    });
-                                                }
                                                 setIsSetDropdownOpen(!isSetDropdownOpen);
                                             }}
                                             style={{
@@ -578,14 +569,14 @@ export const AddMediaModal = ({
                                             <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>▼</span>
                                         </div>
 
-                                        {isSetDropdownOpen && dropdownRect && (
+                                        {isSetDropdownOpen && (
                                             <div
                                                 ref={setDropdownMenuRef}
                                                 style={{
-                                                    position: 'fixed',
-                                                    top: `${dropdownRect.top}px`,
-                                                    left: `${dropdownRect.left}px`,
-                                                    width: `${dropdownRect.width}px`,
+                                                    position: 'absolute',
+                                                    top: 'calc(100% + 4px)',
+                                                    left: 0,
+                                                    right: 0,
                                                     backgroundColor: 'var(--background-primary)',
                                                     border: '1px solid var(--background-modifier-border)',
                                                     borderRadius: '8px',
@@ -593,7 +584,7 @@ export const AddMediaModal = ({
                                                     zIndex: 2000,
                                                     display: 'flex',
                                                     flexDirection: 'column',
-                                                    maxHeight: `${Math.max(180, Math.min(300, window.innerHeight - dropdownRect.top - 16))}px`,
+                                                    maxHeight: '260px',
                                                     overflow: 'hidden'
                                                 }}
                                             >
