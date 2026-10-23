@@ -955,7 +955,15 @@ select.shelf-card-status.status-dropped {
 }
 
 .shelf-gallery.shelf-tcg-gallery {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+    gap: 16px;
+}
+
+.shelf-gallery.shelf-modal-results,
+.shelf-gallery.shelf-tcg-gallery.shelf-modal-results {
+    padding: 8px 0;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
 }
 
 .shelf-card-image.shelf-tcg-card-image {

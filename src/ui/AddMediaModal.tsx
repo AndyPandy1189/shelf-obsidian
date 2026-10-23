@@ -33,8 +33,28 @@ export const AddMediaModal = ({
     const [collectionSet, setCollectionSet] = React.useState('');
     const [setFilterQuery, setSetFilterQuery] = React.useState('');
     const [isSetDropdownOpen, setIsSetDropdownOpen] = React.useState(false);
+    const [dropdownRect, setDropdownRect] = React.useState<{ top: number; left: number; width: number } | null>(null);
+    const setDropdownTriggerRef = React.useRef<HTMLDivElement | null>(null);
+    const setDropdownMenuRef = React.useRef<HTMLDivElement | null>(null);
     const [pokemonSets, setPokemonSets] = React.useState<ShelfAny[]>([]);
     const [loadingSets, setLoadingSets] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!isSetDropdownOpen) return;
+        const handleOutsideClick = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (
+                setDropdownTriggerRef.current &&
+                !setDropdownTriggerRef.current.contains(target) &&
+                setDropdownMenuRef.current &&
+                !setDropdownMenuRef.current.contains(target)
+            ) {
+                setIsSetDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, [isSetDropdownOpen]);
 
     React.useEffect(() => {
         if (type === 'Collections' && collectionType === 'tcg' && collectionCategory === 'pokemon' && pokemonSets.length === 0) {
@@ -520,7 +540,19 @@ export const AddMediaModal = ({
                                             Collection Set <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Optional)</span>
                                         </label>
                                         <div
-                                            onClick={() => !loadingSets && setIsSetDropdownOpen(!isSetDropdownOpen)}
+                                            ref={setDropdownTriggerRef}
+                                            onClick={() => {
+                                                if (loadingSets) return;
+                                                if (!isSetDropdownOpen && setDropdownTriggerRef.current) {
+                                                    const rect = setDropdownTriggerRef.current.getBoundingClientRect();
+                                                    setDropdownRect({
+                                                        top: rect.bottom + 4,
+                                                        left: rect.left,
+                                                        width: rect.width,
+                                                    });
+                                                }
+                                                setIsSetDropdownOpen(!isSetDropdownOpen);
+                                            }}
                                             style={{
                                                 width: '100%',
                                                 height: '38px',
@@ -546,22 +578,22 @@ export const AddMediaModal = ({
                                             <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>▼</span>
                                         </div>
 
-                                        {isSetDropdownOpen && (
+                                        {isSetDropdownOpen && dropdownRect && (
                                             <div
+                                                ref={setDropdownMenuRef}
                                                 style={{
-                                                    position: 'absolute',
-                                                    top: '100%',
-                                                    left: 0,
-                                                    right: 0,
-                                                    marginTop: '4px',
+                                                    position: 'fixed',
+                                                    top: `${dropdownRect.top}px`,
+                                                    left: `${dropdownRect.left}px`,
+                                                    width: `${dropdownRect.width}px`,
                                                     backgroundColor: 'var(--background-primary)',
                                                     border: '1px solid var(--background-modifier-border)',
                                                     borderRadius: '8px',
-                                                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
-                                                    zIndex: 50,
+                                                    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
+                                                    zIndex: 2000,
                                                     display: 'flex',
                                                     flexDirection: 'column',
-                                                    maxHeight: '260px',
+                                                    maxHeight: `${Math.max(180, Math.min(300, window.innerHeight - dropdownRect.top - 16))}px`,
                                                     overflow: 'hidden'
                                                 }}
                                             >
