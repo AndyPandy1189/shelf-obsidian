@@ -78,7 +78,7 @@ collectionSet: "{{collectionSet}}"
 collection: false
 externalId: "{{externalId}}"
 cardRarity: "{{rarity}}"
-currentValue: "{{currentValue}}"
+currentValue: {{currentValue}}
 lastValueUpdate: "{{lastValueUpdate}}"
 rating:
 ---`,
@@ -194,6 +194,10 @@ export default class ShelfPlugin extends Plugin {
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<ShelfPluginSettings>);
+		if (this.settings.tcgPokemonTemplate && this.settings.tcgPokemonTemplate.includes('currentValue: "{{currentValue}}"')) {
+			this.settings.tcgPokemonTemplate = this.settings.tcgPokemonTemplate.replace('currentValue: "{{currentValue}}"', 'currentValue: {{currentValue}}');
+			await this.saveSettings();
+		}
 	}
 
 	async saveSettings() {

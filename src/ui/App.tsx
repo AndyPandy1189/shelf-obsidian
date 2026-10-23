@@ -324,10 +324,10 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     const valKey = mapped('currentValue') || 'currentValue';
                     const lastUpdKey = mapped('lastValueUpdate') || 'lastValueUpdate';
                     if (currentValue !== null) {
-                        const formattedVal = currentValue.toFixed(2);
-                        const prevVal = fm[valKey] !== undefined ? String(fm[valKey]) : '';
-                        fm[valKey] = formattedVal;
-                        if (prevVal !== formattedVal || !fm[lastUpdKey]) {
+                        const numVal = Number(currentValue.toFixed(2));
+                        const prevVal = fm[valKey] !== undefined ? Number(fm[valKey]) : NaN;
+                        fm[valKey] = numVal;
+                        if (prevVal !== numVal || !fm[lastUpdKey]) {
                             fm[lastUpdKey] = todayStr;
                         }
                     }

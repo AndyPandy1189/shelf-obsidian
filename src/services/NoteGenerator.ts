@@ -119,7 +119,7 @@ export class NoteGenerator {
             title: title || '',
         };
 
-        let content = template;
+        let content = template.replace(/"\{\{currentValue\}\}"/g, '{{currentValue}}');
 
         for (const [key, value] of Object.entries(metaObj)) {
             if (key === 'raw') continue;
