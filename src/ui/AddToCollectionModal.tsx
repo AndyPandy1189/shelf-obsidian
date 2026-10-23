@@ -93,6 +93,7 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({
                 releaseState,
                 coverUrl: coverUrl || cardSummary.image || '',
                 externalId: card.id,
+                cardNumber: card.localId ? String(card.localId) : '',
                 rarity: card.rarity || '',
                 collectionSet: card.set?.id || binder.collectionSet || '',
                 currentValue: currentValue !== null ? currentValue.toFixed(2) : '',
@@ -289,6 +290,7 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({
                                 {apiResults.map((card, idx) => {
                                     const inCollection = isCardAlreadyAdded(card);
                                     const isAdding = Boolean(addingCardIds[String(card.id || '')]);
+                                    const totalInSet = card.totalCardsInSet || binder.totalCardsInSet;
                                     return (
                                         <div
                                             key={card.id || idx}
@@ -307,7 +309,12 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({
                                             )}
                                             <div className="shelf-card-content">
                                                 <div className="shelf-card-title">
-                                                    {card.name} {card.localId ? `#${card.localId}` : ''}
+                                                    {card.name}
+                                                    {card.localId && (
+                                                        <span style={{ fontWeight: 500, color: 'var(--text-muted)', marginLeft: '6px', fontSize: '12px' }}>
+                                                            {totalInSet ? `#${card.localId}/${totalInSet}` : `#${card.localId}`}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="shelf-card-subtitle">{card.id}</div>
                                                 <div style={{

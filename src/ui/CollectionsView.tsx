@@ -32,7 +32,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
     const [filterCollection, setFilterCollection] = React.useState('All');
     const [filterRating, setFilterRating] = React.useState('All');
     const [filterReleaseState, setFilterReleaseState] = React.useState('All');
-    const [sortMode, setSortMode] = React.useState<'Title' | 'Release Date' | 'Value'>('Title');
+    const [sortMode, setSortMode] = React.useState<'Set Order' | 'Title' | 'Release Date' | 'Value'>('Set Order');
     const [sortAscending, setSortAscending] = React.useState(true);
     const [vaultTick, bumpVaultTick] = React.useReducer((x: number) => x + 1, 0);
 
@@ -338,14 +338,44 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
     if (searchQuery.trim() !== '') {
         processedItems = processedItems.filter(item =>
             wildcardMatch(item.title, searchQuery) ||
+            wildcardMatch(item.cardNumber || '', searchQuery) ||
             wildcardMatch(item.externalId || '', searchQuery) ||
             wildcardMatch(item.cardRarity || '', searchQuery)
         );
     }
 
+    const effectiveSortMode = (!isTcgBinder && sortMode === 'Set Order') ? 'Title' : sortMode;
+
+    const compareCardNumbers = (numA?: string, numB?: string, titleA?: string, titleB?: string): number => {
+        const a = (numA || '').trim();
+        const b = (numB || '').trim();
+        if (!a && !b) return (titleA || '').localeCompare(titleB || '');
+        if (!a) return 1;
+        if (!b) return -1;
+
+        const leadNumA = a.match(/^\d+/);
+        const leadNumB = b.match(/^\d+/);
+
+        if (leadNumA && leadNumB) {
+            const intA = parseInt(leadNumA[0], 10);
+            const intB = parseInt(leadNumB[0], 10);
+            if (intA !== intB) return intA - intB;
+        } else if (leadNumA && !leadNumB) {
+            return -1;
+        } else if (!leadNumA && leadNumB) {
+            return 1;
+        }
+
+        const cmp = a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+        if (cmp !== 0) return cmp;
+        return (titleA || '').localeCompare(titleB || '');
+    };
+
     processedItems.sort((a, b) => {
         let result = 0;
-        if (sortMode === 'Value') {
+        if (effectiveSortMode === 'Set Order') {
+            result = compareCardNumbers(a.cardNumber, b.cardNumber, a.title, b.title);
+        } else if (effectiveSortMode === 'Value') {
             const valA = a.currentValue ?? 0;
             const valB = b.currentValue ?? 0;
             if (valA === valB) {
@@ -353,7 +383,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             } else {
                 result = valA - valB;
             }
-        } else if (sortMode === 'Release Date') {
+        } else if (effectiveSortMode === 'Release Date') {
             const dateA = a.releaseDate || '0000-00-00';
             const dateB = b.releaseDate || '0000-00-00';
             if (dateA === dateB) {
@@ -511,14 +541,15 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                 <div className="action-group">
                     <label>Sort By:</label>
                     <select
-                        value={sortMode}
+                        value={effectiveSortMode}
                         onChange={e => {
-                            const nextMode = e.target.value as 'Title' | 'Release Date' | 'Value';
+                            const nextMode = e.target.value as 'Set Order' | 'Title' | 'Release Date' | 'Value';
                             setSortMode(nextMode);
                             if (nextMode === 'Release Date' || nextMode === 'Value') setSortAscending(false);
                             else setSortAscending(true);
                         }}
                     >
+                        {isTcgBinder && <option value="Set Order">Set Order</option>}
                         <option value="Title">Title</option>
                         <option value="Release Date">Release Date</option>
                         <option value="Value">Value</option>
@@ -602,7 +633,14 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                         </select>
 
                         <div className="shelf-card-content">
-                            <div className="shelf-card-title">{item.title}</div>
+                            <div className="shelf-card-title">
+                                {item.title}
+                                {isTcgBinder && item.cardNumber && (
+                                    <span style={{ fontWeight: 500, color: 'var(--text-muted)', marginLeft: '6px', fontSize: '12px' }}>
+                                        {activeBinder.totalCardsInSet ? `#${item.cardNumber}/${activeBinder.totalCardsInSet}` : `#${item.cardNumber}`}
+                                    </span>
+                                )}
+                            </div>
                             {item.releaseDate && <div className="shelf-card-subtitle">{item.releaseDate}</div>}
                             {item.cardRarity && (
                                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>

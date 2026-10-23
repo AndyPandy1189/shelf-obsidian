@@ -23,6 +23,7 @@ export interface MediaItem {
     collectionType?: string;
     collectionCategory?: string;
     collectionSet?: string;
+    cardNumber?: string;
     cardRarity?: string;
     currentValue?: number;
     lastValueUpdate?: string;
@@ -187,6 +188,18 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
 
     const parentFolder = file.parent?.path || '';
     const parentName = file.parent?.name || '';
+    const parsedExternalId = parseStr(fm[t('externalId')] || fm['externalId'] || fm['external_id'] || fm['externalid']);
+
+    let cardNumber = parseStr(fm[t('cardNumber')] || fm['cardNumber'] || fm['localId']);
+    if (!cardNumber && isInCollections) {
+        if (parsedExternalId && parsedExternalId.includes('-')) {
+            const parts = parsedExternalId.split('-');
+            cardNumber = parts[parts.length - 1];
+        } else if (file.basename.includes(' - ')) {
+            const parts = file.basename.split(' - ');
+            cardNumber = parts[parts.length - 1].trim();
+        }
+    }
 
     return {
         id: file.path,
@@ -198,7 +211,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         releaseDate: parseStr(fm[t('releaseDate')] || fm['releaseDate'] || fm['release_date'] || fm['releasedate']),
         criticScore: parseStr(fm['criticScore'] || fm['critic_score'] || fm['criticscore']),
         rating: typeof fm['rating'] === 'number' ? fm['rating'] : parseInt(fm['rating']) || undefined,
-        externalId: parseStr(fm[t('externalId')] || fm['externalId'] || fm['external_id'] || fm['externalid']),
+        externalId: parsedExternalId,
         collection: fm['collection'] === true || fm['collection'] === 'true',
         releaseState: parseStr(fm[t('releaseState')] || fm['releaseState'] || fm['release_state'] || fm['releasestate']),
         collectionFolder: isInCollections ? parentFolder : undefined,
@@ -206,6 +219,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         collectionType: parseStr(fm['collectionType']),
         collectionCategory: parseStr(fm['collectionCategory']),
         collectionSet: parseStr(fm[t('collectionSet')] || fm['collectionSet']),
+        cardNumber,
         cardRarity: parseStr(fm[t('rarity')] || fm['cardRarity'] || fm['rarity']),
         currentValue: parsedValue,
         lastValueUpdate: parseStr(fm[t('lastValueUpdate')] || fm['lastValueUpdate']),

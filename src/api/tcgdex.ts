@@ -73,6 +73,7 @@ export async function searchPokemonCards(query: string, setId?: string): Promise
         const setDetails: ShelfAny = await getPokemonSetDetails(setId);
         if (setDetails && Array.isArray(setDetails.cards)) {
             const setReleaseDate = setDetails.releaseDate || '';
+            const totalCardsInSet = setDetails.cardCount?.official || setDetails.cardCount?.total;
             const filtered = setDetails.cards.filter((c: ShelfAny) => {
                 if (!trimmed || trimmed === '*') return true;
                 const nameMatch = wildcardMatch(String(c.name || ''), trimmed);
@@ -87,6 +88,7 @@ export async function searchPokemonCards(query: string, setId?: string): Promise
                 releaseDate: setReleaseDate,
                 setId: setDetails.id,
                 setName: setDetails.name,
+                totalCardsInSet,
                 raw: c
             }));
         }
