@@ -27,6 +27,7 @@ export interface MediaItem {
     cardRarity?: string;
     currentValue?: number;
     lastValueUpdate?: string;
+    variants?: Record<string, number>;
 }
 
 // React Hook to subscribe to Obsidian metadata changes
@@ -201,6 +202,20 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         }
     }
 
+    let variants: Record<string, number> | undefined = undefined;
+    if (isInCollections && fm && typeof fm === 'object') {
+        const parsedVariants: Record<string, number> = {};
+        for (const [k, v] of Object.entries(fm as Record<string, ShelfAny>)) {
+            if (k.startsWith('variant') && k.length > 7 && v !== undefined && v !== null) {
+                const count = typeof v === 'number' ? v : parseInt(String(v), 10);
+                parsedVariants[k] = isNaN(count) ? 0 : Math.max(0, count);
+            }
+        }
+        if (Object.keys(parsedVariants).length > 0) {
+            variants = parsedVariants;
+        }
+    }
+
     return {
         id: file.path,
         file: file,
@@ -223,6 +238,7 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         cardRarity: parseStr(fm[t('rarity')] || fm['cardRarity'] || fm['rarity']),
         currentValue: parsedValue,
         lastValueUpdate: parseStr(fm[t('lastValueUpdate')] || fm['lastValueUpdate']),
+        variants,
     };
 }
 

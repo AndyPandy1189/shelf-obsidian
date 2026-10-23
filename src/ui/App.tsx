@@ -290,7 +290,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
         } else if (item.type === 'Collections') {
             const details = await getPokemonCardDetails(item.externalId);
             if (details) {
-                const { card, releaseDate, releaseState, coverUrl, currentValue } = details;
+                const { card, releaseDate, releaseState, coverUrl, currentValue, variants } = details;
                 const todayStr = new Date().toISOString().split('T')[0];
 
                 const mapped = (variable: string) => {
@@ -329,6 +329,18 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                         fm[valKey] = numVal;
                         if (prevVal !== numVal || !fm[lastUpdKey]) {
                             fm[lastUpdKey] = todayStr;
+                        }
+                    }
+
+                    if (variants && typeof variants === 'object') {
+                        for (const vKey of Object.keys(variants)) {
+                            const existingVal = fm[vKey];
+                            if (existingVal === undefined || existingVal === null || existingVal === '') {
+                                fm[vKey] = 0;
+                            } else if (typeof existingVal !== 'number') {
+                                const parsed = parseInt(String(existingVal), 10);
+                                fm[vKey] = isNaN(parsed) ? 0 : Math.max(0, parsed);
+                            }
                         }
                     }
                 });

@@ -122,7 +122,7 @@ export class NoteGenerator {
         let content = template.replace(/"\{\{currentValue\}\}"/g, '{{currentValue}}');
 
         for (const [key, value] of Object.entries(metaObj)) {
-            if (key === 'raw') continue;
+            if (key === 'raw' || key === 'variants') continue;
 
             const bracketRegex = new RegExp(`\\[\\{\\{${key}\\}\\}\\]`, 'g');
             if (bracketRegex.test(content)) {
@@ -145,6 +145,19 @@ export class NoteGenerator {
 
         content = content.replace(/\[\{\{[\w]+\}\}\]/g, '[]');
         content = content.replace(/\{\{[\w]+\}\}/g, '');
+
+        if (metaObj.variants && typeof metaObj.variants === 'object') {
+            const variantLines: string[] = [];
+            for (const [vKey, vCount] of Object.entries(metaObj.variants as Record<string, number>)) {
+                const keyExistsRegex = new RegExp(`^\\s*${vKey}\\s*:`, 'm');
+                if (!keyExistsRegex.test(content)) {
+                    variantLines.push(`${vKey}: ${typeof vCount === 'number' ? vCount : 0}`);
+                }
+            }
+            if (variantLines.length > 0) {
+                content = content.replace(/\n---\s*$/, `\n${variantLines.join('\n')}\n---`);
+            }
+        }
 
         if (body) {
             content = `${content.trimEnd()}\n\n${body}`;

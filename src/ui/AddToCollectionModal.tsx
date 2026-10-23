@@ -84,7 +84,7 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({
                 throw new Error('Could not fetch card details from TCGdex.');
             }
 
-            const { card, releaseDate, releaseState, coverUrl, currentValue, markdownBody } = details;
+            const { card, releaseDate, releaseState, coverUrl, currentValue, variants, markdownBody } = details;
             const todayStr = new Date().toISOString().split('T')[0];
 
             const metadata: Record<string, ShelfAny> = {
@@ -96,9 +96,10 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({
                 cardNumber: card.localId ? String(card.localId) : '',
                 rarity: card.rarity || '',
                 collectionSet: card.set?.id || binder.collectionSet || '',
-                currentValue: currentValue !== null ? currentValue.toFixed(2) : '',
+                currentValue: currentValue !== null ? Number(currentValue.toFixed(2)) : '',
                 lastValueUpdate: currentValue !== null ? todayStr : '',
                 illustrator: card.illustrator || '',
+                variants: variants || {},
             };
 
             const suffix = card.localId ? `${card.localId}` : `${card.id}`;

@@ -160,12 +160,62 @@ export function extractUsdPrice(card: ShelfAny): number | null {
     return null;
 }
 
+export const VARIANT_KEY_ORDER = [
+    'variantNormal',
+    'variantHolo',
+    'variantReverse',
+    'variantFirstEdition',
+    'variantWPromo',
+];
+
+export function toVariantPropertyName(tcgdexVariantKey: string): string {
+    if (!tcgdexVariantKey) return '';
+    return `variant${tcgdexVariantKey.charAt(0).toUpperCase()}${tcgdexVariantKey.slice(1)}`;
+}
+
+export function formatVariantLabel(propName: string): string {
+    switch (propName) {
+        case 'variantNormal': return 'Normal';
+        case 'variantHolo': return 'Holo';
+        case 'variantReverse': return 'Reverse';
+        case 'variantFirstEdition': return '1st Edition';
+        case 'variantWPromo': return 'W Promo';
+        default: {
+            const raw = propName.replace(/^variant/, '');
+            return raw.replace(/([A-Z])/g, ' $1').trim() || propName;
+        }
+    }
+}
+
+export function extractApplicableVariants(card: ShelfAny): Record<string, number> {
+    const result: Record<string, number> = {};
+    const variantsObj = card?.variants;
+    if (!variantsObj || typeof variantsObj !== 'object') return result;
+
+    const orderedRawKeys = ['normal', 'holo', 'reverse', 'firstEdition', 'wPromo'];
+    for (const k of orderedRawKeys) {
+        if (variantsObj[k] === true) {
+            result[toVariantPropertyName(k)] = 0;
+        }
+    }
+    for (const [k, v] of Object.entries(variantsObj)) {
+        if (v === true) {
+            const prop = toVariantPropertyName(k);
+            if (!(prop in result)) {
+                result[prop] = 0;
+            }
+        }
+    }
+    return result;
+}
+
 export async function getPokemonCardDetails(cardId: string): Promise<{
     card: ShelfAny;
     releaseDate: string;
     releaseState: 'Released' | 'Upcoming';
     coverUrl: string;
     currentValue: number | null;
+    variants: Record<string, number>;
     markdownBody: string;
 } | null> {
     if (!cardId) return null;
@@ -189,6 +239,7 @@ export async function getPokemonCardDetails(cardId: string): Promise<{
     const releaseState: 'Released' | 'Upcoming' = (releaseDate && releaseDate > todayStr) ? 'Upcoming' : 'Released';
     const coverUrl = formatTcgdexImageUrl(card.image, 'high', 'webp');
     const currentValue = extractUsdPrice(card);
+    const variants = extractApplicableVariants(card);
     const markdownBody = buildPokemonCardMarkdownBody(card, releaseDate, coverUrl, currentValue);
 
     return {
@@ -197,6 +248,7 @@ export async function getPokemonCardDetails(cardId: string): Promise<{
         releaseState,
         coverUrl,
         currentValue,
+        variants,
         markdownBody
     };
 }

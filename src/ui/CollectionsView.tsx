@@ -3,7 +3,14 @@ import * as React from 'react';
 import { TFolder, normalizePath, Notice } from 'obsidian';
 import ShelfPlugin, { CollectionBinderConfig, openFileRight } from '../main';
 import { MediaItem } from '../store/cache';
-import { getPokemonSetDetails, formatTcgdexLogoUrl, wildcardMatch } from '../api/tcgdex';
+import {
+    getPokemonSetDetails,
+    getPokemonCardDetails,
+    formatTcgdexLogoUrl,
+    wildcardMatch,
+    formatVariantLabel,
+    VARIANT_KEY_ORDER
+} from '../api/tcgdex';
 import { AddToCollectionModal } from './AddToCollectionModal';
 
 interface CollectionsViewProps {
@@ -202,6 +209,48 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
         const norm = normalizePath(selectedBinderPath);
         return binders.find(b => normalizePath(b.folderPath).toLowerCase() === norm.toLowerCase()) || null;
     }, [selectedBinderPath, binders]);
+
+    const backfilledCardIdsRef = React.useRef<Set<string>>(new Set());
+
+    // Backfill applicable variant* properties for any existing TCG cards in the active binder that don't have them yet
+    React.useEffect(() => {
+        if (!activeBinder || activeBinder.collectionType !== 'tcg') return;
+        let cancelled = false;
+        const normActive = normalizePath(activeBinder.folderPath).toLowerCase();
+        const cardsMissingVariants = collectionItems.filter(
+            i =>
+                normalizePath(i.collectionFolder || '').toLowerCase() === normActive &&
+                i.externalId &&
+                (!i.variants || Object.keys(i.variants).length === 0) &&
+                !backfilledCardIdsRef.current.has(i.id)
+        );
+        if (cardsMissingVariants.length === 0) return;
+
+        const runBackfill = async () => {
+            for (const item of cardsMissingVariants) {
+                if (cancelled) break;
+                backfilledCardIdsRef.current.add(item.id);
+                try {
+                    const details = await getPokemonCardDetails(item.externalId!);
+                    if (details && details.variants && Object.keys(details.variants).length > 0 && !cancelled) {
+                        await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                            for (const vKey of Object.keys(details.variants)) {
+                                if (fm[vKey] === undefined || fm[vKey] === null || fm[vKey] === '') {
+                                    fm[vKey] = 0;
+                                }
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error(`Failed to backfill variants for ${item.title}:`, e);
+                }
+            }
+        };
+        void runBackfill();
+        return () => {
+            cancelled = true;
+        };
+    }, [activeBinder, collectionItems, plugin]);
 
     const handleRefreshBinder = async (binderItems: MediaItem[]) => {
         const refreshable = binderItems.filter(i => i.externalId);
@@ -772,6 +821,111 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                     {item.cardRarity}
                                 </div>
                             )}
+
+                            {isTcgBinder && item.variants && Object.keys(item.variants).length > 0 && (() => {
+                                const variantEntries = Object.entries(item.variants).sort(([a], [b]) => {
+                                    const idxA = VARIANT_KEY_ORDER.indexOf(a);
+                                    const idxB = VARIANT_KEY_ORDER.indexOf(b);
+                                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                                    if (idxA !== -1) return -1;
+                                    if (idxB !== -1) return 1;
+                                    return a.localeCompare(b);
+                                });
+                                return (
+                                    <div
+                                        onClick={e => e.stopPropagation()}
+                                        style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '4px',
+                                            marginTop: '4px',
+                                            marginBottom: '6px',
+                                            paddingTop: '6px',
+                                            borderTop: '1px solid var(--background-modifier-border)'
+                                        }}
+                                    >
+                                        {variantEntries.map(([vKey, vCount]) => (
+                                            <div
+                                                key={vKey}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    fontSize: '11px',
+                                                    color: 'var(--text-normal)'
+                                                }}
+                                            >
+                                                <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
+                                                    {formatVariantLabel(vKey)}
+                                                </span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const nextVal = Math.max(0, (vCount || 0) - 1);
+                                                            void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                                                                fm[vKey] = nextVal;
+                                                            });
+                                                        }}
+                                                        disabled={!vCount || vCount <= 0}
+                                                        style={{
+                                                            width: '20px',
+                                                            height: '20px',
+                                                            padding: 0,
+                                                            borderRadius: '4px',
+                                                            border: '1px solid var(--background-modifier-border)',
+                                                            backgroundColor: 'var(--background-primary)',
+                                                            color: 'var(--text-normal)',
+                                                            cursor: (!vCount || vCount <= 0) ? 'not-allowed' : 'pointer',
+                                                            opacity: (!vCount || vCount <= 0) ? 0.4 : 1,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontWeight: 700,
+                                                            lineHeight: 1
+                                                        }}
+                                                        title={`Decrease ${formatVariantLabel(vKey)} (${vKey})`}
+                                                    >
+                                                        −
+                                                    </button>
+                                                    <span style={{ minWidth: '16px', textAlign: 'center', fontWeight: 600 }}>
+                                                        {vCount || 0}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const nextVal = (vCount || 0) + 1;
+                                                            void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                                                                fm[vKey] = nextVal;
+                                                            });
+                                                        }}
+                                                        style={{
+                                                            width: '20px',
+                                                            height: '20px',
+                                                            padding: 0,
+                                                            borderRadius: '4px',
+                                                            border: '1px solid var(--background-modifier-border)',
+                                                            backgroundColor: 'var(--background-primary)',
+                                                            color: 'var(--text-normal)',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontWeight: 700,
+                                                            lineHeight: 1
+                                                        }}
+                                                        title={`Increase ${formatVariantLabel(vKey)} (${vKey})`}
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '6px' }}>
                                 <div
