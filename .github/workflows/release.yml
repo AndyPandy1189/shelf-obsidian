@@ -26,14 +26,6 @@ jobs:
           npm install
           npm run build
 
-      - name: Attest Build Provenance
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-path: |
-            main.js
-            manifest.json
-            styles.css
-
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
@@ -43,3 +35,11 @@ jobs:
             styles.css
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attest Build Provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css

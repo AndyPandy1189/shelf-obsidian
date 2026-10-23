@@ -70,13 +70,15 @@ export const AddMediaModal = ({
             let coverUrl = '';
             let setName = '';
             let totalCardsInSet: number | undefined = undefined;
+            let setReleaseDate = '';
 
             if (collectionType === 'tcg' && collectionSet) {
                 const setDetails = await getPokemonSetDetails(collectionSet);
                 if (setDetails) {
                     coverUrl = formatTcgdexLogoUrl(setDetails.logo || setDetails.symbol, 'png');
                     setName = setDetails.name || collectionSet;
-                    totalCardsInSet = setDetails.cardCount?.total || setDetails.cardCount?.official || undefined;
+                    totalCardsInSet = setDetails.cardCount?.official || setDetails.cardCount?.total || undefined;
+                    setReleaseDate = setDetails.releaseDate || '';
                 }
             }
 
@@ -93,6 +95,7 @@ export const AddMediaModal = ({
                 collectionSetName: setName || undefined,
                 coverUrl: coverUrl || undefined,
                 totalCardsInSet,
+                releaseDate: setReleaseDate || undefined,
             };
 
             await plugin.saveSettings();

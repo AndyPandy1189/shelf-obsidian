@@ -12,6 +12,7 @@ export interface CollectionBinderConfig {
 	collectionSetName?: string;
 	coverUrl?: string;
 	totalCardsInSet?: number;
+	releaseDate?: string;
 }
 
 interface ShelfPluginSettings {

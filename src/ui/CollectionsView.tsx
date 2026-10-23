@@ -28,6 +28,13 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
     collectionsVersion,
 }) => {
     const [isAddToCollectionOpen, setIsAddToCollectionOpen] = React.useState(false);
+    // Top-level Collections Overview filter & sort state
+    const [binderSearchQuery, setBinderSearchQuery] = React.useState('');
+    const [filterBinderType, setFilterBinderType] = React.useState<'All' | 'tcg' | 'other'>('All');
+    const [filterBinderCategory, setFilterBinderCategory] = React.useState<string>('All');
+    const [binderSortMode, setBinderSortMode] = React.useState<'Title' | 'Release Date'>('Title');
+    const [binderSortAscending, setBinderSortAscending] = React.useState(true);
+    // Opened Binder filter & sort state
     const [searchQuery, setSearchQuery] = React.useState('');
     const [filterCollection, setFilterCollection] = React.useState('All');
     const [filterRating, setFilterRating] = React.useState('All');
@@ -146,29 +153,34 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             if (item.collectionSet && !existing.collectionSet) {
                 existing.collectionSet = item.collectionSet;
             }
+            if (item.releaseDate && !existing.releaseDate && existing.collectionType === 'tcg') {
+                existing.releaseDate = item.releaseDate;
+            }
             map.set(norm, existing);
         }
 
         return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
     }, [plugin, collectionItems, vaultTick, collectionsVersion]);
 
-    // Backfill set logo & official card count if a binder has collectionSet but is missing coverUrl or totalCardsInSet
+    // Backfill set logo, official card count, and releaseDate if a binder has collectionSet
     React.useEffect(() => {
         let cancelled = false;
         const enrichSets = async () => {
             let changed = false;
             for (const b of binders) {
-                if (b.collectionType === 'tcg' && b.collectionSet && (!b.coverUrl || !b.totalCardsInSet)) {
+                if (b.collectionType === 'tcg' && b.collectionSet && (!b.coverUrl || !b.totalCardsInSet || !b.releaseDate)) {
                     const setDetails = await getPokemonSetDetails(b.collectionSet);
                     if (setDetails && !cancelled) {
                         const logoUrl = formatTcgdexLogoUrl(setDetails.logo || setDetails.symbol, 'png');
                         const totalCards = setDetails.cardCount?.official || setDetails.cardCount?.total;
+                        const setReleaseDate = setDetails.releaseDate || undefined;
                         if (!plugin.settings.collectionsData) plugin.settings.collectionsData = {};
                         plugin.settings.collectionsData[b.folderPath] = {
                             ...b,
                             coverUrl: logoUrl || b.coverUrl,
                             collectionSetName: setDetails.name || b.collectionSetName,
                             totalCardsInSet: totalCards || b.totalCardsInSet,
+                            releaseDate: setReleaseDate || b.releaseDate,
                         };
                         changed = true;
                     }
@@ -217,10 +229,116 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
 
     // ================= TOP-LEVEL COLLECTIONS BINDER OVERVIEW =================
     if (!activeBinder) {
+        const availableCategories = Array.from(
+            new Set([
+                'pokemon',
+                ...binders
+                    .map(b => (b.collectionCategory || '').trim().toLowerCase())
+                    .filter(Boolean)
+            ])
+        );
+
+        let displayedBinders = [...binders];
+
+        if (filterBinderType !== 'All') {
+            displayedBinders = displayedBinders.filter(b => b.collectionType === filterBinderType);
+        }
+
+        if (filterBinderCategory !== 'All') {
+            displayedBinders = displayedBinders.filter(
+                b => (b.collectionCategory || '').toLowerCase() === filterBinderCategory.toLowerCase()
+            );
+        }
+
+        if (binderSearchQuery.trim() !== '') {
+            displayedBinders = displayedBinders.filter(b =>
+                wildcardMatch(b.name, binderSearchQuery) ||
+                wildcardMatch(b.collectionSetName || '', binderSearchQuery) ||
+                wildcardMatch(b.collectionSet || '', binderSearchQuery)
+            );
+        }
+
+        displayedBinders.sort((a, b) => {
+            let res = 0;
+            if (binderSortMode === 'Release Date') {
+                const dateA = a.releaseDate || '0000-00-00';
+                const dateB = b.releaseDate || '0000-00-00';
+                if (dateA === dateB) {
+                    res = a.name.localeCompare(b.name);
+                } else {
+                    res = dateA.localeCompare(dateB);
+                }
+            } else {
+                res = a.name.localeCompare(b.name);
+            }
+            return binderSortAscending ? res : -res;
+        });
+
         return (
-            <div style={{ padding: '24px' }}>
-                <div className="shelf-gallery" style={{ padding: 0 }}>
-                    {binders.map(binder => {
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div className="shelf-action-bar">
+                    <div className="action-group" style={{ flexGrow: 1 }}>
+                        <input
+                            type="text"
+                            className="shelf-search-input"
+                            placeholder="Search collections..."
+                            value={binderSearchQuery}
+                            onChange={e => setBinderSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    <div className="action-group">
+                        <select
+                            value={filterBinderType}
+                            onChange={e => {
+                                const val = e.target.value as 'All' | 'tcg' | 'other';
+                                setFilterBinderType(val);
+                                if (val === 'other') setFilterBinderCategory('All');
+                            }}
+                            title="Filter by Collection Type"
+                        >
+                            <option value="All">All Types</option>
+                            <option value="tcg">Trading Card Game (TCG)</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <select
+                            value={filterBinderCategory}
+                            onChange={e => setFilterBinderCategory(e.target.value)}
+                            title="Filter by Category"
+                        >
+                            <option value="All">All Categories</option>
+                            {availableCategories.map(cat => (
+                                <option key={cat} value={cat}>
+                                    {cat === 'pokemon' ? 'Pokémon' : cat}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="action-group">
+                        <label>Sort By:</label>
+                        <select
+                            value={binderSortMode}
+                            onChange={e => {
+                                const nextMode = e.target.value as 'Title' | 'Release Date';
+                                setBinderSortMode(nextMode);
+                                if (nextMode === 'Release Date') setBinderSortAscending(false);
+                                else setBinderSortAscending(true);
+                            }}
+                        >
+                            <option value="Title">Title</option>
+                            <option value="Release Date">Release Date</option>
+                        </select>
+                        <button
+                            className="shelf-icon-button"
+                            onClick={() => setBinderSortAscending(!binderSortAscending)}
+                            title={binderSortAscending ? 'Ascending' : 'Descending'}
+                        >
+                            {binderSortAscending ? '↑' : '↓'}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="shelf-gallery">
+                    {displayedBinders.map(binder => {
                         const normFolder = normalizePath(binder.folderPath).toLowerCase();
                         const binderItems = collectionItems.filter(
                             i => normalizePath(i.collectionFolder || '').toLowerCase() === normFolder
@@ -260,11 +378,16 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                 </div>
                                 <div className="shelf-card-content">
                                     <div className="shelf-card-title">{binder.name}</div>
-                                    <div className="shelf-card-subtitle">
+                                    <div className="shelf-card-subtitle" style={{ marginBottom: binder.releaseDate ? '2px' : '8px' }}>
                                         {binder.collectionType === 'tcg'
                                             ? `TCG • ${binder.collectionCategory === 'pokemon' ? 'Pokémon' : (binder.collectionCategory || 'TCG')}${binder.collectionSetName ? ` • ${binder.collectionSetName}` : ''}`
                                             : 'Other Collection'}
                                     </div>
+                                    {binder.releaseDate && (
+                                        <div className="shelf-card-subtitle" style={{ marginBottom: '8px' }}>
+                                            {binder.releaseDate}
+                                        </div>
+                                    )}
 
                                     <div style={{ marginTop: '4px', marginBottom: '8px' }} title={`${pct}% Collected (${collectedCount}/${totalTarget})`}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>
@@ -285,9 +408,11 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                             </div>
                         );
                     })}
-                    {binders.length === 0 && (
+                    {displayedBinders.length === 0 && (
                         <div style={{ color: 'var(--text-muted)', gridColumn: '1 / -1' }}>
-                            No collections yet. Click <strong>+ Add to Library</strong> at the top right to create your first Collection!
+                            {binders.length === 0
+                                ? <>No collections yet. Click <strong>+ Add to Library</strong> at the top right to create your first Collection!</>
+                                : 'No collections match your current filters.'}
                         </div>
                     )}
                 </div>
@@ -436,7 +561,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                         <h2 style={{ margin: 0, fontSize: '1.25em' }}>{activeBinder.name}</h2>
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                             {isTcgBinder
-                                ? `Trading Card Game • Pokémon${activeBinder.collectionSetName ? ` • ${activeBinder.collectionSetName}` : ''}`
+                                ? `Trading Card Game • Pokémon${activeBinder.collectionSetName ? ` • ${activeBinder.collectionSetName}` : ''}${activeBinder.releaseDate ? ` • ${activeBinder.releaseDate}` : ''}`
                                 : 'Other Collection'}
                         </div>
                     </div>
