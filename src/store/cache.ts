@@ -68,6 +68,27 @@ export function useMediaLibrary(plugin: ShelfPlugin) {
             });
         });
 
+        const resolvedRef = app.metadataCache.on('resolved', () => {
+            void loadInitialData();
+        });
+
+        const createRef = app.vault.on('create', (file) => {
+            if (file instanceof TFile && file.extension === 'md') {
+                const updatedItem = parseFileToMediaItem(plugin, file);
+                if (updatedItem) {
+                    setMediaItems(prev => {
+                        const index = prev.findIndex(item => item.id === file.path);
+                        if (index > -1) {
+                            const next = [...prev];
+                            next[index] = updatedItem;
+                            return next;
+                        }
+                        return [...prev, updatedItem];
+                    });
+                }
+            }
+        });
+
         const deleteRef = app.vault.on('delete', (file) => {
             if (file instanceof TFile) {
                 setMediaItems(prev => prev.filter(item => item.id !== file.path));
@@ -87,6 +108,8 @@ export function useMediaLibrary(plugin: ShelfPlugin) {
 
         return () => {
             app.metadataCache.offref(eventRef);
+            app.metadataCache.offref(resolvedRef);
+            app.vault.offref(createRef);
             app.vault.offref(deleteRef);
             app.vault.offref(renameRef);
         };
@@ -109,22 +132,38 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
     const comicMangaFolder = String(settings.comicMangaDestinationFolder || '').toLowerCase();
     const collectionsFolder = String(settings.collectionsDestinationFolder || '').toLowerCase();
 
+    const cache = passedCache || plugin.app.metadataCache.getFileCache(file);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+    const fm: ShelfAny = cache?.frontmatter || {};
+
+    const savedBinderFolders = settings.collectionsData
+        ? Object.entries(settings.collectionsData).map(([k, v]) =>
+            String(v?.folderPath || k).toLowerCase().replace(/^\/+|\/+$/g, '')
+        )
+        : [];
+    const isInSavedBinder = savedBinderFolders.some(
+        folder => folder && (lowerPath.startsWith(folder + '/') || lowerPath.includes('/' + folder + '/'))
+    );
+    const hasCollectionFrontmatter = Boolean(fm && (fm['collectionType'] || fm['collectionSet']));
+
     const isInMovie = Boolean(movieFolder && lowerPath.includes(movieFolder));
     const isInTv = Boolean(tvFolder && lowerPath.includes(tvFolder));
     const isInGame = Boolean(gameFolder && lowerPath.includes(gameFolder));
     const isInBook = Boolean(bookFolder && lowerPath.includes(bookFolder));
     const isInComicManga = Boolean(comicMangaFolder && lowerPath.includes(comicMangaFolder));
-    const isInCollections = Boolean(settings.enableCollections && collectionsFolder && lowerPath.includes(collectionsFolder));
+    const isInCollections = Boolean(
+        settings.enableCollections && (
+            (collectionsFolder && lowerPath.includes(collectionsFolder)) ||
+            isInSavedBinder ||
+            hasCollectionFrontmatter
+        )
+    );
 
     if (!isInMovie && !isInTv && !isInGame && !isInBook && !isInComicManga && !isInCollections) {
         return null; // Ignore files outside of configured folders
     }
 
-    const cache = passedCache || plugin.app.metadataCache.getFileCache(file);
     if (!isInCollections && (!cache || !cache.frontmatter)) return null;
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-    const fm: ShelfAny = cache?.frontmatter || {};
 
     let typeStr = 'Unknown';
     // Let folder define the default type
