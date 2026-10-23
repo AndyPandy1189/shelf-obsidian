@@ -8,8 +8,8 @@ export interface MediaItem {
     id: string; // The file path
     file: TFile;
     title: string;
-    
-    status: 'Wishlist' | 'Active' | 'Completed' | 'TBD';
+    type: 'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga' | 'Collections';
+    status: 'Wishlist' | 'Active' | 'Completed' | 'TBD' | string;
     coverUrl?: string;
     releaseDate?: string;
     criticScore?: string;
@@ -17,6 +17,15 @@ export interface MediaItem {
     collection?: boolean;
     rating?: number;
     releaseState?: string;
+    // Collection / Binder item properties
+    collectionFolder?: string;
+    collectionName?: string;
+    collectionType?: string;
+    collectionCategory?: string;
+    collectionSet?: string;
+    cardRarity?: string;
+    currentValue?: number;
+    lastValueUpdate?: string;
 }
 
 // React Hook to subscribe to Obsidian metadata changes
@@ -31,7 +40,6 @@ export function useMediaLibrary(plugin: ShelfPlugin) {
             const items = files.map(file => parseFileToMediaItem(plugin, file)).filter(Boolean) as MediaItem[];
             setMediaItems(items);
         };
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Dynamic API response
         // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Dynamic API response
         loadInitialData();
 
@@ -89,56 +97,58 @@ export function useMediaLibrary(plugin: ShelfPlugin) {
 }
 
 function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: ShelfAny): MediaItem | null {
-    const cache = passedCache || plugin.app.metadataCache.getFileCache(file);
-    if (!cache || !cache.frontmatter) return null;
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-    const fm = cache.frontmatter;
     const settings = plugin.settings;
-    // We strictly enforce that a file MUST be in one of the mapped folders
     const lowerPath = file.path.toLowerCase();
-    const movieFolder = String(settings.movieDestinationFolder).toLowerCase();
-    const tvFolder = String(settings.tvDestinationFolder).toLowerCase();
-    const gameFolder = String(settings.gameDestinationFolder).toLowerCase();
-    const bookFolder = String(settings.bookDestinationFolder).toLowerCase();
-    const comicMangaFolder = String(settings.comicMangaDestinationFolder).toLowerCase();
+    const movieFolder = String(settings.movieDestinationFolder || '').toLowerCase();
+    const tvFolder = String(settings.tvDestinationFolder || '').toLowerCase();
+    const gameFolder = String(settings.gameDestinationFolder || '').toLowerCase();
+    const bookFolder = String(settings.bookDestinationFolder || '').toLowerCase();
+    const comicMangaFolder = String(settings.comicMangaDestinationFolder || '').toLowerCase();
+    const collectionsFolder = String(settings.collectionsDestinationFolder || '').toLowerCase();
 
-    const isInMovie = movieFolder && lowerPath.includes(movieFolder);
-    const isInTv = tvFolder && lowerPath.includes(tvFolder);
-    const isInGame = gameFolder && lowerPath.includes(gameFolder);
-    const isInBook = bookFolder && lowerPath.includes(bookFolder);
-    const isInComicManga = comicMangaFolder && lowerPath.includes(comicMangaFolder);
+    const isInMovie = Boolean(movieFolder && lowerPath.includes(movieFolder));
+    const isInTv = Boolean(tvFolder && lowerPath.includes(tvFolder));
+    const isInGame = Boolean(gameFolder && lowerPath.includes(gameFolder));
+    const isInBook = Boolean(bookFolder && lowerPath.includes(bookFolder));
+    const isInComicManga = Boolean(comicMangaFolder && lowerPath.includes(comicMangaFolder));
+    const isInCollections = Boolean(settings.enableCollections && collectionsFolder && lowerPath.includes(collectionsFolder));
 
-    if (!isInMovie && !isInTv && !isInGame && !isInBook && !isInComicManga) {
+    if (!isInMovie && !isInTv && !isInGame && !isInBook && !isInComicManga && !isInCollections) {
         return null; // Ignore files outside of configured folders
     }
 
+    const cache = passedCache || plugin.app.metadataCache.getFileCache(file);
+    if (!isInCollections && (!cache || !cache.frontmatter)) return null;
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+    const fm: ShelfAny = cache?.frontmatter || {};
+
     let typeStr = 'Unknown';
     // Let folder define the default type
-    if (isInMovie) typeStr = 'Movies';
+    if (isInCollections) typeStr = 'Collections';
+    else if (isInMovie) typeStr = 'Movies';
     else if (isInTv) typeStr = 'TV';
     else if (isInGame) typeStr = 'Games';
     else if (isInBook) typeStr = 'Books';
     else if (isInComicManga) typeStr = 'Comics & Manga';
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-    // Allow frontmatter to override if they share a folder (but must still be inside the folder)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-    const rawType = fm['mediaType'] || fm['type'] || fm['shelf_type'];
-    if (rawType !== undefined && rawType !== null) {
-        const strType = String(rawType).toLowerCase();
-        if (strType.includes('movie')) typeStr = 'Movies';
-        else if (strType.includes('tv') || strType.includes('show')) typeStr = 'TV';
-        else if (strType.includes('game')) typeStr = 'Games';
-        else if (strType.includes('book')) typeStr = 'Books';
-        else if (strType.includes('comic') || strType.includes('manga')) typeStr = 'Comics & Manga';
+    if (!isInCollections) {
+        // Allow frontmatter to override if they share a folder (but must still be inside the folder)
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+        const rawType = fm['mediaType'] || fm['type'] || fm['shelf_type'];
+        if (rawType !== undefined && rawType !== null) {
+            const strType = String(rawType).toLowerCase();
+            if (strType.includes('movie')) typeStr = 'Movies';
+            else if (strType.includes('tv') || strType.includes('show')) typeStr = 'TV';
+            else if (strType.includes('game')) typeStr = 'Games';
+            else if (strType.includes('book')) typeStr = 'Books';
+            else if (strType.includes('comic') || strType.includes('manga')) typeStr = 'Comics & Manga';
+        }
     }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-    
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
     const status = fm['status'] || fm['shelf_status'];
-    
+
     if (typeStr === 'Unknown' && !status) {
         return null; // Not a shelf item
     }
@@ -147,11 +157,10 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         if (val === undefined || val === null) return undefined;
         if (typeof val === 'object' && !Array.isArray(val)) {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- Dynamic API response
-            // Probably an Obsidian link object e.g. [[Link]] -> { path: 'Link' }
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- Dynamic API response
-            return val.path || val.link || JSON.stringify(val);
+            return (val as any).path || (val as any).link || JSON.stringify(val);
         }
-        return String(val);
+        const s = String(val).trim();
+        return s === '' ? undefined : s;
     };
 
     const t = (variable: string) => {
@@ -160,37 +169,46 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         else if (typeStr === 'TV') template = plugin.settings.tvTemplate;
         else if (typeStr === 'Games') template = plugin.settings.gameTemplate;
         else if (typeStr === 'Books') template = plugin.settings.bookTemplate;
-        
+        else if (typeStr === 'Comics & Manga') template = plugin.settings.comicMangaTemplate;
+        else if (typeStr === 'Collections') template = `${plugin.settings.tcgPokemonTemplate}\n${plugin.settings.otherCollectionTemplate}`;
+
         const regex = new RegExp(`^\\s*([^:\\n]+):.*\\{\\{${variable}\\}\\}`, 'm');
         const match = template.match(regex);
         if (match) return match[1].trim();
         return variable;
     };
 
+    const rawVal = fm[t('currentValue')] ?? fm['currentValue'] ?? fm['value'];
+    let parsedValue: number | undefined = undefined;
+    if (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') {
+        const num = parseFloat(String(rawVal).replace(/[^0-9.-]/g, ''));
+        if (!isNaN(num)) parsedValue = num;
+    }
+
+    const parentFolder = file.parent?.path || '';
+    const parentName = file.parent?.name || '';
+
     return {
         id: file.path,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         file: file,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         title: parseStr(fm[t('title')] || fm['title']) || file.basename,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-        type: typeStr as ShelfAny,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+        type: typeStr as MediaItem['type'],
         status: parseStr(status) || 'TBD',
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         coverUrl: parseStr(fm[t('coverUrl')] || fm['posterImage'] || fm['coverUrl'] || fm['cover_url'] || fm['image']),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         releaseDate: parseStr(fm[t('releaseDate')] || fm['releaseDate'] || fm['release_date'] || fm['releasedate']),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         criticScore: parseStr(fm['criticScore'] || fm['critic_score'] || fm['criticscore']),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         rating: typeof fm['rating'] === 'number' ? fm['rating'] : parseInt(fm['rating']) || undefined,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         externalId: parseStr(fm[t('externalId')] || fm['externalId'] || fm['external_id'] || fm['externalid']),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         collection: fm['collection'] === true || fm['collection'] === 'true',
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Dynamic API response
         releaseState: parseStr(fm[t('releaseState')] || fm['releaseState'] || fm['release_state'] || fm['releasestate']),
+        collectionFolder: isInCollections ? parentFolder : undefined,
+        collectionName: isInCollections ? parentName : undefined,
+        collectionType: parseStr(fm['collectionType']),
+        collectionCategory: parseStr(fm['collectionCategory']),
+        collectionSet: parseStr(fm[t('collectionSet')] || fm['collectionSet']),
+        cardRarity: parseStr(fm[t('rarity')] || fm['cardRarity'] || fm['rarity']),
+        currentValue: parsedValue,
+        lastValueUpdate: parseStr(fm[t('lastValueUpdate')] || fm['lastValueUpdate']),
     };
 }
 

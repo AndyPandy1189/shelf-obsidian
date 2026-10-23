@@ -3,7 +3,19 @@ import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { ShelfView, VIEW_TYPE_SHELF } from './ShelfView';
 import { FolderSuggest } from './settings/FolderSuggest';
 
+export interface CollectionBinderConfig {
+	name: string;
+	folderPath: string;
+	collectionType: 'tcg' | 'other';
+	collectionCategory?: string;
+	collectionSet?: string;
+	collectionSetName?: string;
+	coverUrl?: string;
+	totalCardsInSet?: number;
+}
+
 interface ShelfPluginSettings {
+	enableCollections: boolean;
 	tmdbApiKey: string;
 	igdbClientId: string;
 	igdbClientSecret: string;
@@ -12,6 +24,10 @@ interface ShelfPluginSettings {
 	comicVineApiKey: string;
 	comicMangaDestinationFolder: string;
 	comicMangaTemplate: string;
+	collectionsDestinationFolder: string;
+	tcgPokemonTemplate: string;
+	otherCollectionTemplate: string;
+	collectionsData: Record<string, CollectionBinderConfig>;
 	movieTemplatePath: string;
 	movieDestinationFolder: string;
 	tvTemplatePath: string;
@@ -39,6 +55,7 @@ interface ShelfPluginSettings {
 }
 
 const DEFAULT_SETTINGS: ShelfPluginSettings = {
+	enableCollections: true,
 	tmdbApiKey: '',
 	igdbClientId: '',
 	igdbClientSecret: '',
@@ -47,6 +64,28 @@ const DEFAULT_SETTINGS: ShelfPluginSettings = {
 	comicVineApiKey: '',
 	comicMangaDestinationFolder: 'Shelf/Comics',
 	comicMangaTemplate: '---\nexternalId: {{externalId}}\ntitle: {{title}}\ncreator: {{author}}\ncategories: {{categories}}\npublisher: {{publisher}}\nreleaseDate: {{releaseDate}}\nposterImage: {{posterImage}}\nrating: 0\nmediaType: comic\nstatus: Reading\n---\n',
+	collectionsDestinationFolder: 'Shelf/Collections',
+	tcgPokemonTemplate: `---
+title: "{{title}}"
+releaseDate: "{{releaseDate}}"
+releaseState: "{{releaseState}}"
+posterImage: "{{coverUrl}}"
+creator: [{{illustrator}}]
+collectionType: "tcg"
+collectionCategory: "pokemon"
+collectionSet: "{{collectionSet}}"
+collection: false
+externalId: "{{externalId}}"
+cardRarity: "{{rarity}}"
+currentValue: "{{currentValue}}"
+lastValueUpdate: "{{lastValueUpdate}}"
+rating:
+---`,
+	otherCollectionTemplate: `---
+title: "{{title}}"
+collectionType: "other"
+---`,
+	collectionsData: {},
 	movieTemplatePath: '',
 	movieDestinationFolder: 'Shelf/Movies',
 	tvTemplatePath: '',
@@ -178,6 +217,19 @@ class ShelfSettingTab extends PluginSettingTab {
 		const {containerEl} = this;
 		containerEl.empty();
 
+		new Setting(containerEl).setName('Features').setHeading();
+		new Setting(containerEl)
+			.setName('Enable Collections (Binders)')
+			.setDesc('Enable the Collections tab and binder management features (Trading Card Games, Other collections).')
+			.addToggle(toggle => {
+				toggle
+					.setValue(this.plugin.settings.enableCollections)
+					.onChange(async (value) => {
+						this.plugin.settings.enableCollections = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
 		new Setting(containerEl).setName('API Setup').setHeading();
 		new Setting(containerEl)
 			.setName('TMDB API Key')
@@ -299,6 +351,19 @@ class ShelfSettingTab extends PluginSettingTab {
 					});
 			});
 
+		new Setting(containerEl)
+			.setName('Collections Folder')
+			.setDesc('Parent folder where all collection folders (binders) and their items will be saved.')
+			.addSearch((cb) => {
+				new FolderSuggest(this.app, cb.inputEl);
+				cb.setPlaceholder('Shelf/Collections')
+					.setValue(this.plugin.settings.collectionsDestinationFolder)
+					.onChange(async (new_folder) => {
+						this.plugin.settings.collectionsDestinationFolder = new_folder;
+						await this.plugin.saveSettings();
+					});
+			});
+
 		new Setting(containerEl).setName('Templates').setHeading();
 		
 		const noticeDiv = containerEl.createDiv();
@@ -383,6 +448,28 @@ class ShelfSettingTab extends PluginSettingTab {
 				setupTextArea(text);
 			});
 		s5.settingEl.classList.add('shelf-setting-block');
+
+		new Setting(containerEl).setName('Collections Templates').setHeading();
+
+		const s6 = new Setting(containerEl)
+			.setName('TCG Pokémon Template')
+			.setDesc(createVarsDesc('Markdown template for Trading Card Game (Pokémon) cards added to a collection.', ['title', 'releaseDate', 'releaseState', 'coverUrl', 'externalId', 'rarity', 'collectionSet', 'currentValue', 'lastValueUpdate', 'illustrator']))
+			.addTextArea(text => {
+				text.setValue(this.plugin.settings.tcgPokemonTemplate)
+				.onChange(async (v) => { this.plugin.settings.tcgPokemonTemplate = v; await this.plugin.saveSettings(); });
+				setupTextArea(text);
+			});
+		s6.settingEl.classList.add('shelf-setting-block');
+
+		const s7 = new Setting(containerEl)
+			.setName('Other Collection Template')
+			.setDesc(createVarsDesc('Markdown template for items created in an "Other" collection.', ['title']))
+			.addTextArea(text => {
+				text.setValue(this.plugin.settings.otherCollectionTemplate)
+				.onChange(async (v) => { this.plugin.settings.otherCollectionTemplate = v; await this.plugin.saveSettings(); });
+				setupTextArea(text);
+			});
+		s7.settingEl.classList.add('shelf-setting-block');
 
 	}
 }

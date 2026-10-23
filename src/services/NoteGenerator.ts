@@ -64,7 +64,8 @@ export class NoteGenerator {
             content = content.replace(regex, replaceStr);
         }
         
-        // Clean up any remaining unmapped {{variables}}
+        // Clean up any remaining unmapped [{{variables}}] and {{variables}}
+        content = content.replace(/\[\{\{[\w]+\}\}\]/g, '[]');
         content = content.replace(/\{\{[\w]+\}\}/g, '');
 
         // Replace colons with dashes, then strip other invalid path characters
@@ -76,15 +77,92 @@ export class NoteGenerator {
             throw new Error(`File already exists: ${finalPath}`);
         }
 
-        // Ensure folder exists
-        const folder = this.plugin.app.vault.getAbstractFileByPath(normalizePath(destination));
-        if (!folder) {
-            await this.plugin.app.vault.createFolder(normalizePath(destination));
-        }
+        await this.ensureFolderExists(destination);
 
         const newFile = await this.plugin.app.vault.create(finalPath, content);
         return newFile;
     }
+
+    async ensureFolderExists(folderPath: string) {
+        const normalized = normalizePath(folderPath);
+        if (!normalized) return;
+        const parts = normalized.split('/');
+        let current = '';
+        for (const part of parts) {
+            current = current ? `${current}/${part}` : part;
+            const existing = this.plugin.app.vault.getAbstractFileByPath(current);
+            if (!existing) {
+                try {
+                    await this.plugin.app.vault.createFolder(current);
+                } catch {
+                    // Ignore if created concurrently
+                }
+            }
+        }
+    }
+
+    async generateCollectionItemNote(options: {
+        folderPath: string;
+        fileName: string;
+        title: string;
+        collectionType: 'tcg' | 'other';
+        metadata: ShelfAny;
+        body?: string;
+    }) {
+        const { folderPath, fileName, title, collectionType, metadata, body } = options;
+        let template = collectionType === 'tcg'
+            ? this.plugin.settings.tcgPokemonTemplate
+            : this.plugin.settings.otherCollectionTemplate;
+
+        const metaObj: Record<string, ShelfAny> = {
+            ...(metadata as Record<string, ShelfAny>),
+            title: title || '',
+        };
+
+        let content = template;
+
+        for (const [key, value] of Object.entries(metaObj)) {
+            if (key === 'raw') continue;
+
+            const bracketRegex = new RegExp(`\\[\\{\\{${key}\\}\\}\\]`, 'g');
+            if (bracketRegex.test(content)) {
+                if (Array.isArray(value)) {
+                    content = content.replace(bracketRegex, JSON.stringify(value));
+                } else if (value !== undefined && value !== null && String(value).trim() !== '') {
+                    content = content.replace(bracketRegex, JSON.stringify([String(value)]));
+                } else {
+                    content = content.replace(bracketRegex, '[]');
+                }
+            }
+
+            const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+            let replaceStr = value !== undefined && value !== null ? String(value) : '';
+            if (Array.isArray(value)) {
+                replaceStr = JSON.stringify(value);
+            }
+            content = content.replace(regex, replaceStr);
+        }
+
+        content = content.replace(/\[\{\{[\w]+\}\}\]/g, '[]');
+        content = content.replace(/\{\{[\w]+\}\}/g, '');
+
+        if (body) {
+            content = `${content.trimEnd()}\n\n${body}`;
+        }
+
+        const safeFileName = fileName.replace(/:/g, ' -').replace(/[\\/"*?<>|]/g, '').trim();
+        const finalPath = normalizePath(`${folderPath}/${safeFileName}.md`);
+
+        const existingFile = this.plugin.app.vault.getAbstractFileByPath(finalPath);
+        if (existingFile) {
+            throw new Error(`File already exists: ${finalPath}`);
+        }
+
+        await this.ensureFolderExists(folderPath);
+        const newFile = await this.plugin.app.vault.create(finalPath, content);
+        return newFile;
+    }
 }
+
 
 

@@ -1,19 +1,111 @@
 import { ShelfAny } from '../types';
 import * as React from 'react';
-import { Notice } from 'obsidian';
+import { Notice, normalizePath } from 'obsidian';
 import ShelfPlugin, { openFileRight } from '../main';
 import { searchTMDB, getTMDBDetails } from '../api/tmdb';
 import { searchGoogleBooks } from '../api/googleBooks';
 import { searchIGDB, fetchIGDBToken } from '../api/igdb';
 import { searchComicVine, getComicVineDetails } from '../api/comicVine';
+import { getPokemonSets, getPokemonSetDetails, formatTcgdexLogoUrl } from '../api/tcgdex';
 import { NoteGenerator } from '../services/NoteGenerator';
 
-export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPlugin, onClose: () => void, defaultTab?: 'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga' }) => {
+export const AddMediaModal = ({
+    plugin,
+    onClose,
+    defaultTab,
+    onCollectionCreated
+}: {
+    plugin: ShelfPlugin;
+    onClose: () => void;
+    defaultTab?: 'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga' | 'Collections';
+    onCollectionCreated?: (folderPath: string) => void;
+}) => {
     const [query, setQuery] = React.useState('');
-    const [type, setType] = React.useState<'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga'>(defaultTab || 'Movies');
+    const [type, setType] = React.useState<'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga' | 'Collections'>(defaultTab || 'Movies');
     const [results, setResults] = React.useState<ShelfAny[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState('');
+
+    // Collection creation state
+    const [collectionName, setCollectionName] = React.useState('');
+    const [collectionType, setCollectionType] = React.useState<'tcg' | 'other'>('tcg');
+    const [collectionCategory, setCollectionCategory] = React.useState('pokemon');
+    const [collectionSet, setCollectionSet] = React.useState('');
+    const [setFilterQuery, setSetFilterQuery] = React.useState('');
+    const [pokemonSets, setPokemonSets] = React.useState<ShelfAny[]>([]);
+    const [loadingSets, setLoadingSets] = React.useState(false);
+
+    React.useEffect(() => {
+        if (type === 'Collections' && collectionType === 'tcg' && collectionCategory === 'pokemon' && pokemonSets.length === 0) {
+            setLoadingSets(true);
+            getPokemonSets()
+                .then(sets => {
+                    // Reverse so newest sets are easy to see, or keep API order
+                    setPokemonSets([...sets].reverse());
+                })
+                .catch(err => console.error('Failed to load TCGdex sets:', err))
+                .finally(() => setLoadingSets(false));
+        }
+    }, [type, collectionType, collectionCategory]);
+
+    const handleCreateCollection = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmedName = collectionName.trim();
+        if (!trimmedName) {
+            setError('Please enter a Collection Name.');
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+        try {
+            const safeFolderName = trimmedName.replace(/:/g, ' -').replace(/[\\/"*?<>|]/g, '').trim();
+            const parentFolder = plugin.settings.collectionsDestinationFolder || 'Shelf/Collections';
+            const folderPath = normalizePath(`${parentFolder}/${safeFolderName}`);
+
+            const generator = new NoteGenerator(plugin);
+            await generator.ensureFolderExists(folderPath);
+
+            let coverUrl = '';
+            let setName = '';
+            let totalCardsInSet: number | undefined = undefined;
+
+            if (collectionType === 'tcg' && collectionSet) {
+                const setDetails = await getPokemonSetDetails(collectionSet);
+                if (setDetails) {
+                    coverUrl = formatTcgdexLogoUrl(setDetails.logo || setDetails.symbol, 'png');
+                    setName = setDetails.name || collectionSet;
+                    totalCardsInSet = setDetails.cardCount?.total || setDetails.cardCount?.official || undefined;
+                }
+            }
+
+            if (!plugin.settings.collectionsData) {
+                plugin.settings.collectionsData = {};
+            }
+
+            plugin.settings.collectionsData[folderPath] = {
+                name: trimmedName,
+                folderPath,
+                collectionType,
+                collectionCategory: collectionType === 'tcg' ? collectionCategory : undefined,
+                collectionSet: collectionType === 'tcg' && collectionSet ? collectionSet : undefined,
+                collectionSetName: setName || undefined,
+                coverUrl: coverUrl || undefined,
+                totalCardsInSet,
+            };
+
+            await plugin.saveSettings();
+            new Notice(`Created collection "${trimmedName}"`);
+            if (onCollectionCreated) {
+                onCollectionCreated(folderPath);
+            }
+            onClose();
+        } catch (err: ShelfAny) {
+            setError('Failed to create collection: ' + ((err as any)?.message || String(err)));
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -334,87 +426,188 @@ export const AddMediaModal = ({ plugin, onClose, defaultTab }: { plugin: ShelfPl
 
             const generator = new NoteGenerator(plugin);
             // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Dynamic API response
-            const newFile = await generator.generateNote(type, result.title, finalMetadata);
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Dynamic API response
+            const newFile = await generator.generateNote(type as 'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga', result.title, finalMetadata);
             // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Dynamic API response
             openFileRight(plugin, newFile);
             onClose();
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Dynamic API response
         } catch (e: ShelfAny) {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- Dynamic API response
-            if (e.message && e.message.includes('already exists')) {
+            if ((e as any).message && (e as any).message.includes('already exists')) {
                 setError('This item is already in your library!');
             } else {
-                setError('Failed to add to library: ' + e.message);
+                setError('Failed to add to library: ' + (e as any).message);
             }
         } finally {
             setLoading(false);
         }
     };
 
+    const filteredSets = pokemonSets.filter((s: ShelfAny) => {
+        if (!setFilterQuery.trim()) return true;
+        const q = setFilterQuery.toLowerCase();
+        return String(s.name || '').toLowerCase().includes(q) || String(s.id || '').toLowerCase().includes(q);
+    });
+
     return (
         <div className="shelf-modal-overlay">
             <div className="shelf-modal">
                 <div className="shelf-modal-header">
-                    <h2>Add to Library</h2>
+                    <h2>{type === 'Collections' ? 'Create a Collection' : 'Add to Library'}</h2>
                     <button className="close-btn" onClick={onClose}>&times;</button>
                 </div>
                 <div className="shelf-modal-body">
-                    <form className="shelf-search-bar" onSubmit={(e) => { void handleSearch(e); }}>
-                        <select value={type} onChange={e => {setType(e.target.value as ShelfAny); setResults([]);}} style={{ width: '100%' }}>
+                    <div className="shelf-search-bar" style={{ marginBottom: '16px' }}>
+                        <select value={type} onChange={e => { setType(e.target.value as ShelfAny); setResults([]); setError(''); }} style={{ width: '100%' }}>
                             <option value="Movies">Movies</option>
                             <option value="TV">TV Shows</option>
                             <option value="Games">Games</option>
                             <option value="Books">Books</option>
                             <option value="Comics & Manga">Comics & Manga</option>
+                            {plugin.settings.enableCollections && (
+                                <option value="Collections">Collections (Binder)</option>
+                            )}
                         </select>
-
-                        <div className="shelf-search-row">
-                            <input 
-                                type="text" 
-                                placeholder="Search title..." 
-                                value={query}
-                                onChange={e => setQuery(e.target.value)}
-                                autoFocus
-                            />
-                            <button type="submit" disabled={loading}>{loading ? 'Searching...' : 'Search'}</button>
-                        </div>
-                    </form>
-
-                    {error && <div className="shelf-error">{error}</div>}
-
-                    <div className="shelf-gallery shelf-modal-results">
-                        {results.map((result, idx) => (
-                            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-                            <div key={idx} className="shelf-card" onClick={() => { void handleAdd(result); }}>
-                                {result.coverUrl ? (
-                                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
-                                    <img src={result.coverUrl} className="shelf-card-image" alt={result.title} />
-                                ) : (
-                                    <div className="shelf-card-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Cover</div>
-                                )}
-                                <div className="shelf-card-content">
-                                    <div className="shelf-card-title">{result.title}</div>
-                                    {result.releaseDate && <div className="shelf-card-subtitle">{result.releaseDate}</div>}
-                                    <div style={{
-                                        fontSize: '12px', 
-                                        padding: '6px 16px', 
-                                        borderRadius: '100px',
-                                        fontWeight: 600,
-                                        backgroundColor: 'var(--interactive-accent)',
-                                        color: 'var(--text-on-accent)',
-                                        textAlign: 'center',
-                                        marginTop: 'auto',
-                                        alignSelf: 'flex-start'
-                                    }}>Add to Library</div>
-                                </div>
-                            </div>
-                        ))}
                     </div>
+
+                    {type === 'Collections' ? (
+                        <form className="shelf-collection-create-form" onSubmit={(e) => { void handleCreateCollection(e); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Collection Name</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g., Vivid Voltage Binder, Sheet Music..."
+                                    value={collectionName}
+                                    onChange={e => setCollectionName(e.target.value)}
+                                    style={{ width: '100%', height: '38px', padding: '0 14px', borderRadius: '8px', border: '1px solid var(--background-modifier-border)', backgroundColor: 'var(--background-primary)', color: 'var(--text-normal)' }}
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Collection Type</label>
+                                <select
+                                    value={collectionType}
+                                    onChange={e => setCollectionType(e.target.value as 'tcg' | 'other')}
+                                    style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--background-modifier-border)', backgroundColor: 'var(--background-secondary)', color: 'var(--text-normal)' }}
+                                >
+                                    <option value="tcg">Trading Card Game</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+
+                            {collectionType === 'tcg' && (
+                                <>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Collection Category</label>
+                                        <select
+                                            value={collectionCategory}
+                                            onChange={e => setCollectionCategory(e.target.value)}
+                                            style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--background-modifier-border)', backgroundColor: 'var(--background-secondary)', color: 'var(--text-normal)' }}
+                                        >
+                                            <option value="pokemon">Pokémon</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+                                            Collection Set <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Optional — limits card search & uses set logo)</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="Filter sets by name or ID (e.g., Darkness Ablaze, swsh3, 151)..."
+                                            value={setFilterQuery}
+                                            onChange={e => setSetFilterQuery(e.target.value)}
+                                            style={{ width: '100%', height: '34px', padding: '0 12px', marginBottom: '8px', borderRadius: '8px', border: '1px solid var(--background-modifier-border)', backgroundColor: 'var(--background-primary)', color: 'var(--text-normal)' }}
+                                        />
+                                        <select
+                                            value={collectionSet}
+                                            onChange={e => setCollectionSet(e.target.value)}
+                                            disabled={loadingSets}
+                                            style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--background-modifier-border)', backgroundColor: 'var(--background-secondary)', color: 'var(--text-normal)' }}
+                                        >
+                                            <option value="">{loadingSets ? 'Loading sets from TCGdex...' : '— No specific set (All Pokémon Sets) —'}</option>
+                                            {filteredSets.map((s: ShelfAny) => (
+                                                <option key={s.id} value={s.id}>
+                                                    {s.name} ({s.id})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+
+                            {error && <div className="shelf-error">{error}</div>}
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    style={{ padding: '8px 18px', borderRadius: '20px', border: '1px solid var(--background-modifier-border)', backgroundColor: 'var(--background-secondary)', color: 'var(--text-normal)', cursor: 'pointer' }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    style={{ padding: '8px 20px', borderRadius: '20px', border: 'none', backgroundColor: 'var(--interactive-accent)', color: 'var(--text-on-accent)', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                    {loading ? 'Creating...' : 'Create Collection'}
+                                </button>
+                            </div>
+                        </form>
+                    ) : (
+                        <>
+                            <form className="shelf-search-bar" onSubmit={(e) => { void handleSearch(e); }}>
+                                <div className="shelf-search-row">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search title..." 
+                                        value={query}
+                                        onChange={e => setQuery(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <button type="submit" disabled={loading}>{loading ? 'Searching...' : 'Search'}</button>
+                                </div>
+                            </form>
+
+                            {error && <div className="shelf-error">{error}</div>}
+
+                            <div className="shelf-gallery shelf-modal-results">
+                                {results.map((result, idx) => (
+                                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+                                    <div key={idx} className="shelf-card" onClick={() => { void handleAdd(result); }}>
+                                        {result.coverUrl ? (
+                                            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Dynamic API response
+                                            <img src={result.coverUrl} className="shelf-card-image" alt={result.title} />
+                                        ) : (
+                                            <div className="shelf-card-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Cover</div>
+                                        )}
+                                        <div className="shelf-card-content">
+                                            <div className="shelf-card-title">{result.title}</div>
+                                            {result.releaseDate && <div className="shelf-card-subtitle">{result.releaseDate}</div>}
+                                            <div style={{
+                                                fontSize: '12px', 
+                                                padding: '6px 16px', 
+                                                borderRadius: '100px',
+                                                fontWeight: 600,
+                                                backgroundColor: 'var(--interactive-accent)',
+                                                color: 'var(--text-on-accent)',
+                                                textAlign: 'center',
+                                                marginTop: 'auto',
+                                                alignSelf: 'flex-start'
+                                            }}>Add to Library</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
     );
 };
+
 
 

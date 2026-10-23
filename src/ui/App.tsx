@@ -3,17 +3,20 @@ import * as React from 'react';
 import ShelfPlugin, { openFileRight } from '../main';
 import { useMediaLibrary, MediaItem } from '../store/cache';
 import { CalendarView } from './CalendarView';
+import { CollectionsView } from './CollectionsView';
 import { AddMediaModal } from './AddMediaModal';
 import { TrackerModal } from './TrackerModal';
 import { getTMDBDetails } from '../api/tmdb';
 import { getIGDBDetails, fetchIGDBToken } from '../api/igdb';
 import { getGoogleBooksDetails } from '../api/googleBooks';
 import { getComicVineDetails } from '../api/comicVine';
+import { getPokemonCardDetails } from '../api/tcgdex';
 import { Notice } from 'obsidian';
 
 export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
     const items = useMediaLibrary(plugin);
-    const [activeTab, setActiveTab] = React.useState<'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga' | 'Calendar'>('Movies');
+    const [activeTab, setActiveTab] = React.useState<'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga' | 'Collections' | 'Calendar'>('Movies');
+    const [selectedBinderPath, setSelectedBinderPath] = React.useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
     const [trackingItem, setTrackingItem] = React.useState<MediaItem | null>(null);
     const [sortMode, setSortMode] = React.useState<'Title' | 'Release Date'>('Title');
@@ -37,6 +40,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
             else if (item.type === 'Games') template = plugin.settings.gameTemplate;
             else if (item.type === 'Books') template = plugin.settings.bookTemplate;
             else if (item.type === 'Comics & Manga') template = plugin.settings.comicMangaTemplate;
+            else if (item.type === 'Collections') template = plugin.settings.tcgPokemonTemplate;
             
             const regex = new RegExp(`^\\s*([^:\\n]+):.*\\{\\{${variable}\\}\\}`, 'm');
             const match = template.match(regex);
@@ -278,6 +282,53 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                         else fm[t('releaseState')] = 'Released';
                     } else {
                         fm[t('releaseState')] = 'Released';
+                    }
+                });
+                return true;
+            }
+        } else if (item.type === 'Collections') {
+            const details = await getPokemonCardDetails(item.externalId);
+            if (details) {
+                const { card, releaseDate, releaseState, coverUrl, currentValue } = details;
+                const todayStr = new Date().toISOString().split('T')[0];
+
+                const mapped = (variable: string) => {
+                    const regex = new RegExp(`^\\s*([^:\\n]+):.*\\{\\{${variable}\\}\\}`, 'm');
+                    const match = plugin.settings.tcgPokemonTemplate.match(regex);
+                    return match ? match[1].trim() : null;
+                };
+
+                await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                    const titleKey = mapped('title');
+                    if (titleKey && card.name) fm[titleKey] = card.name;
+
+                    const dateKey = mapped('releaseDate');
+                    if (dateKey && releaseDate) fm[dateKey] = releaseDate;
+
+                    const stateKey = mapped('releaseState');
+                    if (stateKey) fm[stateKey] = releaseState;
+
+                    const coverKey = mapped('coverUrl');
+                    if (coverKey && coverUrl) fm[coverKey] = coverUrl;
+
+                    const rarityKey = mapped('rarity');
+                    if (rarityKey && card.rarity) fm[rarityKey] = card.rarity;
+
+                    const setKey = mapped('collectionSet');
+                    if (setKey && card.set?.id) fm[setKey] = card.set.id;
+
+                    const illKey = mapped('illustrator');
+                    if (illKey && card.illustrator) fm[illKey] = [card.illustrator];
+
+                    const valKey = mapped('currentValue') || 'currentValue';
+                    const lastUpdKey = mapped('lastValueUpdate') || 'lastValueUpdate';
+                    if (currentValue !== null) {
+                        const formattedVal = currentValue.toFixed(2);
+                        const prevVal = fm[valKey] !== undefined ? String(fm[valKey]) : '';
+                        fm[valKey] = formattedVal;
+                        if (prevVal !== formattedVal || !fm[lastUpdKey]) {
+                            fm[lastUpdKey] = todayStr;
+                        }
                     }
                 });
                 return true;
@@ -581,36 +632,54 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
         );
     }
 
+    const visibleTabs = plugin.settings.enableCollections
+        ? ['Movies', 'TV', 'Games', 'Books', 'Comics & Manga', 'Collections', 'Calendar']
+        : ['Movies', 'TV', 'Games', 'Books', 'Comics & Manga', 'Calendar'];
+
     return (
         <div className="shelf-app">
             <div className="shelf-header">
                 <div className="shelf-tabs-desktop">
-                    {['Movies', 'TV', 'Games', 'Books', 'Comics & Manga', 'Calendar'].map(tab => (
+                    {visibleTabs.map(tab => (
                         <div 
                             key={tab} 
                             className={`shelf-tab ${activeTab === tab ? 'active' : ''}`}
-                            onClick={() => setActiveTab(tab as ShelfAny)}
+                            onClick={() => {
+                                setActiveTab(tab as ShelfAny);
+                                if (tab === 'Collections') setSelectedBinderPath(null);
+                            }}
                         >
                             {tab}
                         </div>
                     ))}
                 </div>
                 <div className="shelf-tabs-mobile">
-                    <select value={activeTab} onChange={(e) => setActiveTab(e.target.value as ShelfAny)} className="shelf-tab-select">
+                    <select
+                        value={activeTab}
+                        onChange={(e) => {
+                            const nextTab = e.target.value as ShelfAny;
+                            setActiveTab(nextTab);
+                            if (nextTab === 'Collections') setSelectedBinderPath(null);
+                        }}
+                        className="shelf-tab-select"
+                    >
                         <option value="Movies">Movies</option>
                         <option value="TV">TV</option>
                         <option value="Games">Games</option>
                         <option value="Books">Books</option>
                         <option value="Comics & Manga">Comics & Manga</option>
+                        {plugin.settings.enableCollections && (
+                            <option value="Collections">Collections</option>
+                        )}
                         <option value="Calendar">Calendar</option>
                     </select>
                 </div>
                 <div style={{flexGrow: 1}} />
-                {activeTab !== 'Calendar' && (
+                {activeTab !== 'Calendar' && activeTab !== 'Collections' && (
                     <button 
                         className="shelf-fab" 
                         style={{ marginRight: '8px', backgroundColor: 'var(--interactive-normal)', color: 'var(--text-normal)' }} 
-                        onClick={(e) => { void handleGlobalRefresh(e); }}
+                        onClick={() => { void handleGlobalRefresh(); }}
                         disabled={isRefreshing}
                         title={`Refresh ${activeTab}`}
                     >
@@ -622,7 +691,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                 </button>
             </div>
 
-            {activeTab !== 'Calendar' && (
+            {activeTab !== 'Calendar' && activeTab !== 'Collections' && (
                 <div className="shelf-action-bar">
                     <div className="action-group" style={{ flexGrow: 1 }}>
                         <input 
@@ -696,11 +765,29 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
             <div className="shelf-view-container shelf-gallery-container">
                 {activeTab === 'Calendar' ? (
                     <CalendarView items={items} plugin={plugin} />
+                ) : activeTab === 'Collections' ? (
+                    <CollectionsView
+                        plugin={plugin}
+                        items={items}
+                        selectedBinderPath={selectedBinderPath}
+                        onSelectBinder={setSelectedBinderPath}
+                        onRefreshSingleItem={refreshSingleItem}
+                        isRefreshing={isRefreshing}
+                        setIsRefreshing={setIsRefreshing}
+                    />
                 ) : renderContent}
             </div>
 
             {isAddModalOpen && (
-                <AddMediaModal plugin={plugin} onClose={() => setIsAddModalOpen(false)} defaultTab={activeTab === 'Calendar' ? 'Movies' : activeTab} />
+                <AddMediaModal
+                    plugin={plugin}
+                    onClose={() => setIsAddModalOpen(false)}
+                    defaultTab={activeTab === 'Calendar' ? 'Movies' : activeTab}
+                    onCollectionCreated={(folderPath) => {
+                        setActiveTab('Collections');
+                        setSelectedBinderPath(folderPath);
+                    }}
+                />
             )}
             
             {trackingItem && (
