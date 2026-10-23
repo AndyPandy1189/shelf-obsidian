@@ -17,6 +17,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
     const items = useMediaLibrary(plugin);
     const [activeTab, setActiveTab] = React.useState<'Movies' | 'TV' | 'Games' | 'Books' | 'Comics & Manga' | 'Collections' | 'Calendar'>('Movies');
     const [selectedBinderPath, setSelectedBinderPath] = React.useState<string | null>(null);
+    const [collectionsVersion, setCollectionsVersion] = React.useState<number>(0);
     const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
     const [trackingItem, setTrackingItem] = React.useState<MediaItem | null>(null);
     const [sortMode, setSortMode] = React.useState<'Title' | 'Release Date'>('Title');
@@ -774,6 +775,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                         onRefreshSingleItem={refreshSingleItem}
                         isRefreshing={isRefreshing}
                         setIsRefreshing={setIsRefreshing}
+                        collectionsVersion={collectionsVersion}
                     />
                 ) : renderContent}
             </div>
@@ -783,9 +785,10 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     plugin={plugin}
                     onClose={() => setIsAddModalOpen(false)}
                     defaultTab={activeTab === 'Calendar' ? 'Movies' : activeTab}
-                    onCollectionCreated={(folderPath) => {
+                    onCollectionCreated={(_folderPath) => {
+                        setCollectionsVersion(v => v + 1);
                         setActiveTab('Collections');
-                        setSelectedBinderPath(folderPath);
+                        setSelectedBinderPath(null);
                     }}
                 />
             )}

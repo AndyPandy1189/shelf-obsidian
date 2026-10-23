@@ -953,3 +953,15 @@ select.shelf-card-status.status-dropped {
         color: var(--text-muted);
     }
 }
+
+.shelf-gallery.shelf-tcg-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.shelf-card-image.shelf-tcg-card-image {
+    aspect-ratio: 63 / 88;
+    object-fit: contain;
+    padding: 6px;
+    box-sizing: border-box;
+}
+

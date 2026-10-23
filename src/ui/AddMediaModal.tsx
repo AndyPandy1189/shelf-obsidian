@@ -32,6 +32,7 @@ export const AddMediaModal = ({
     const [collectionCategory, setCollectionCategory] = React.useState('pokemon');
     const [collectionSet, setCollectionSet] = React.useState('');
     const [setFilterQuery, setSetFilterQuery] = React.useState('');
+    const [isSetDropdownOpen, setIsSetDropdownOpen] = React.useState(false);
     const [pokemonSets, setPokemonSets] = React.useState<ShelfAny[]>([]);
     const [loadingSets, setLoadingSets] = React.useState(false);
 
@@ -449,6 +450,8 @@ export const AddMediaModal = ({
         return String(s.name || '').toLowerCase().includes(q) || String(s.id || '').toLowerCase().includes(q);
     });
 
+    const selectedSetObj = pokemonSets.find((s: ShelfAny) => s.id === collectionSet);
+
     return (
         <div className="shelf-modal-overlay">
             <div className="shelf-modal">
@@ -465,7 +468,7 @@ export const AddMediaModal = ({
                             <option value="Books">Books</option>
                             <option value="Comics & Manga">Comics & Manga</option>
                             {plugin.settings.enableCollections && (
-                                <option value="Collections">Collections (Binder)</option>
+                                <option value="Collections">Collections</option>
                             )}
                         </select>
                     </div>
@@ -476,7 +479,7 @@ export const AddMediaModal = ({
                                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Collection Name</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g., Vivid Voltage Binder, Sheet Music..."
+                                    placeholder="e.g., Vivid Voltage, Sheet Music..."
                                     value={collectionName}
                                     onChange={e => setCollectionName(e.target.value)}
                                     style={{ width: '100%', height: '38px', padding: '0 14px', borderRadius: '8px', border: '1px solid var(--background-modifier-border)', backgroundColor: 'var(--background-primary)', color: 'var(--text-normal)' }}
@@ -509,30 +512,116 @@ export const AddMediaModal = ({
                                         </select>
                                     </div>
 
-                                    <div>
+                                    <div style={{ position: 'relative' }}>
                                         <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
-                                            Collection Set <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Optional — limits card search & uses set logo)</span>
+                                            Collection Set <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Optional)</span>
                                         </label>
-                                        <input
-                                            type="text"
-                                            placeholder="Filter sets by name or ID (e.g., Darkness Ablaze, swsh3, 151)..."
-                                            value={setFilterQuery}
-                                            onChange={e => setSetFilterQuery(e.target.value)}
-                                            style={{ width: '100%', height: '34px', padding: '0 12px', marginBottom: '8px', borderRadius: '8px', border: '1px solid var(--background-modifier-border)', backgroundColor: 'var(--background-primary)', color: 'var(--text-normal)' }}
-                                        />
-                                        <select
-                                            value={collectionSet}
-                                            onChange={e => setCollectionSet(e.target.value)}
-                                            disabled={loadingSets}
-                                            style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--background-modifier-border)', backgroundColor: 'var(--background-secondary)', color: 'var(--text-normal)' }}
+                                        <div
+                                            onClick={() => !loadingSets && setIsSetDropdownOpen(!isSetDropdownOpen)}
+                                            style={{
+                                                width: '100%',
+                                                height: '38px',
+                                                padding: '0 12px',
+                                                borderRadius: '8px',
+                                                border: '1px solid var(--background-modifier-border)',
+                                                backgroundColor: 'var(--background-secondary)',
+                                                color: 'var(--text-normal)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                cursor: loadingSets ? 'wait' : 'pointer',
+                                                boxSizing: 'border-box'
+                                            }}
                                         >
-                                            <option value="">{loadingSets ? 'Loading sets from TCGdex...' : '— No specific set (All Pokémon Sets) —'}</option>
-                                            {filteredSets.map((s: ShelfAny) => (
-                                                <option key={s.id} value={s.id}>
-                                                    {s.name} ({s.id})
-                                                </option>
-                                            ))}
-                                        </select>
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {loadingSets
+                                                    ? 'Loading sets from TCGdex...'
+                                                    : selectedSetObj
+                                                        ? `${selectedSetObj.name} (${selectedSetObj.id})`
+                                                        : '— No specific set (All Pokémon Sets) —'}
+                                            </span>
+                                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>▼</span>
+                                        </div>
+
+                                        {isSetDropdownOpen && (
+                                            <div
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: '100%',
+                                                    left: 0,
+                                                    right: 0,
+                                                    marginTop: '4px',
+                                                    backgroundColor: 'var(--background-primary)',
+                                                    border: '1px solid var(--background-modifier-border)',
+                                                    borderRadius: '8px',
+                                                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+                                                    zIndex: 50,
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    maxHeight: '260px',
+                                                    overflow: 'hidden'
+                                                }}
+                                            >
+                                                <div style={{ padding: '8px', borderBottom: '1px solid var(--background-modifier-border)' }}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Filter sets..."
+                                                        value={setFilterQuery}
+                                                        onChange={e => setSetFilterQuery(e.target.value)}
+                                                        onClick={e => e.stopPropagation()}
+                                                        autoFocus
+                                                        style={{
+                                                            width: '100%',
+                                                            height: '32px',
+                                                            padding: '0 10px',
+                                                            borderRadius: '6px',
+                                                            border: '1px solid var(--background-modifier-border)',
+                                                            backgroundColor: 'var(--background-secondary)',
+                                                            color: 'var(--text-normal)',
+                                                            boxSizing: 'border-box'
+                                                        }}
+                                                    />
+                                                </div>
+                                                <div style={{ overflowY: 'auto', flex: 1 }}>
+                                                    <div
+                                                        onClick={() => {
+                                                            setCollectionSet('');
+                                                            setIsSetDropdownOpen(false);
+                                                            setSetFilterQuery('');
+                                                        }}
+                                                        style={{
+                                                            padding: '8px 12px',
+                                                            cursor: 'pointer',
+                                                            backgroundColor: collectionSet === '' ? 'var(--background-modifier-hover)' : 'transparent',
+                                                            fontWeight: collectionSet === '' ? 600 : 400
+                                                        }}
+                                                    >
+                                                        — No specific set (All Pokémon Sets) —
+                                                    </div>
+                                                    {filteredSets.map((s: ShelfAny) => (
+                                                        <div
+                                                            key={s.id}
+                                                            onClick={() => {
+                                                                setCollectionSet(s.id);
+                                                                setIsSetDropdownOpen(false);
+                                                                setSetFilterQuery('');
+                                                            }}
+                                                            style={{
+                                                                padding: '8px 12px',
+                                                                cursor: 'pointer',
+                                                                backgroundColor: collectionSet === s.id ? 'var(--background-modifier-hover)' : 'transparent',
+                                                                fontWeight: collectionSet === s.id ? 600 : 400
+                                                            }}
+                                                        >
+                                                            {s.name} <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>({s.id})</span>
+                                                        </div>
+                                                    ))}
+                                                    {filteredSets.length === 0 && (
+                                                        <div style={{ padding: '8px 12px', color: 'var(--text-muted)' }}>No matching sets found.</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </>
                             )}

@@ -1,23 +1,32 @@
 import { ShelfAny } from '../types';
 import * as React from 'react';
 import { Notice, TFile, normalizePath } from 'obsidian';
-import ShelfPlugin, { CollectionBinderConfig, openFileRight } from '../main';
+import ShelfPlugin, { CollectionBinderConfig } from '../main';
+import { MediaItem } from '../store/cache';
 import { searchPokemonCards, getPokemonCardDetails, wildcardMatch } from '../api/tcgdex';
 import { NoteGenerator } from '../services/NoteGenerator';
 
 interface AddToCollectionModalProps {
     plugin: ShelfPlugin;
     binder: CollectionBinderConfig;
+    existingItems: MediaItem[];
     onClose: () => void;
 }
 
-export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({ plugin, binder, onClose }) => {
+export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({
+    plugin,
+    binder,
+    existingItems,
+    onClose,
+}) => {
     const isTcg = binder.collectionType === 'tcg';
     const [mode, setMode] = React.useState<'new' | 'existing'>('new');
     const [query, setQuery] = React.useState('');
     const [newItemTitle, setNewItemTitle] = React.useState('');
     const [apiResults, setApiResults] = React.useState<ShelfAny[]>([]);
     const [loading, setLoading] = React.useState(false);
+    const [addingCardIds, setAddingCardIds] = React.useState<Record<string, boolean>>({});
+    const [addedCardIds, setAddedCardIds] = React.useState<Record<string, boolean>>({});
     const [error, setError] = React.useState('');
 
     // Auto-load cards if TCG collection has a preconfigured collectionSet
@@ -30,6 +39,21 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({ plug
                 .finally(() => setLoading(false));
         }
     }, [isTcg, mode, binder.collectionSet]);
+
+    const isCardAlreadyAdded = React.useCallback((cardSummary: ShelfAny): boolean => {
+        const cardId = String(cardSummary.id || '');
+        if (!cardId) return false;
+        if (addedCardIds[cardId]) return true;
+        if (existingItems.some(i => String(i.externalId || '') === cardId)) return true;
+
+        const suffix = cardSummary.localId ? `${cardSummary.localId}` : `${cardId}`;
+        const rawName = `${cardSummary.name || 'Card'} - ${suffix}`;
+        const safeFileName = rawName.replace(/:/g, ' -').replace(/[\\/"*?<>|]/g, '').trim();
+        const expectedPath = normalizePath(`${binder.folderPath}/${safeFileName}.md`);
+        if (plugin.app.vault.getAbstractFileByPath(expectedPath)) return true;
+
+        return false;
+    }, [addedCardIds, existingItems, binder.folderPath, plugin.app.vault]);
 
     const handleSearchTcg = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -47,10 +71,15 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({ plug
     };
 
     const handleAddTcgCard = async (cardSummary: ShelfAny) => {
-        setLoading(true);
+        const cardId = String(cardSummary.id || '');
+        if (!cardId || isCardAlreadyAdded(cardSummary) || addingCardIds[cardId]) {
+            return;
+        }
+
+        setAddingCardIds(prev => ({ ...prev, [cardId]: true }));
         setError('');
         try {
-            const details = await getPokemonCardDetails(cardSummary.id);
+            const details = await getPokemonCardDetails(cardId);
             if (!details) {
                 throw new Error('Could not fetch card details from TCGdex.');
             }
@@ -75,7 +104,7 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({ plug
             const fileName = `${card.name || 'Card'} - ${suffix}`;
 
             const generator = new NoteGenerator(plugin);
-            const newFile = await generator.generateCollectionItemNote({
+            await generator.generateCollectionItemNote({
                 folderPath: binder.folderPath,
                 fileName,
                 title: card.name || cardSummary.name,
@@ -84,18 +113,22 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({ plug
                 body: markdownBody,
             });
 
+            setAddedCardIds(prev => ({ ...prev, [cardId]: true }));
             new Notice(`Added "${card.name}" to ${binder.name}`);
-            void openFileRight(plugin, newFile);
-            onClose();
+            // Keep modal open and do not open the file so user can add multiple cards at once
         } catch (err: ShelfAny) {
             const msg = (err as any)?.message || String(err);
             if (msg.includes('already exists')) {
-                setError('This card is already in this collection!');
+                setAddedCardIds(prev => ({ ...prev, [cardId]: true }));
             } else {
                 setError('Failed to add card: ' + msg);
             }
         } finally {
-            setLoading(false);
+            setAddingCardIds(prev => {
+                const next = { ...prev };
+                delete next[cardId];
+                return next;
+            });
         }
     };
 
@@ -110,7 +143,7 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({ plug
         setError('');
         try {
             const generator = new NoteGenerator(plugin);
-            const newFile = await generator.generateCollectionItemNote({
+            await generator.generateCollectionItemNote({
                 folderPath: binder.folderPath,
                 fileName: trimmed,
                 title: trimmed,
@@ -120,8 +153,7 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({ plug
                 },
             });
             new Notice(`Created "${trimmed}" in ${binder.name}`);
-            void openFileRight(plugin, newFile);
-            onClose();
+            setNewItemTitle('');
         } catch (err: ShelfAny) {
             const msg = (err as any)?.message || String(err);
             if (msg.includes('already exists')) {
@@ -172,7 +204,6 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({ plug
             });
 
             new Notice(`Moved "${file.basename}" to ${binder.name}`);
-            onClose();
         } catch (err: ShelfAny) {
             setError('Failed to move file: ' + ((err as any)?.message || String(err)));
         } finally {
@@ -192,7 +223,7 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({ plug
                 return wildcardMatch(f.basename, query) || wildcardMatch(f.path, query);
             })
             .slice(0, 100);
-    }, [mode, query, binder.folderPath, plugin.app.vault]);
+    }, [mode, query, binder.folderPath, plugin.app.vault, existingItems]);
 
     return (
         <div className="shelf-modal-overlay">
@@ -254,33 +285,53 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({ plug
 
                             {error && <div className="shelf-error">{error}</div>}
 
-                            <div className="shelf-gallery shelf-modal-results">
-                                {apiResults.map((card, idx) => (
-                                    <div key={card.id || idx} className="shelf-card" onClick={() => { void handleAddTcgCard(card); }}>
-                                        {card.image ? (
-                                            <img src={card.image} className="shelf-card-image" alt={card.name} />
-                                        ) : (
-                                            <div className="shelf-card-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>
-                                        )}
-                                        <div className="shelf-card-content">
-                                            <div className="shelf-card-title">
-                                                {card.name} {card.localId ? `#${card.localId}` : ''}
+                            <div className="shelf-gallery shelf-tcg-gallery shelf-modal-results">
+                                {apiResults.map((card, idx) => {
+                                    const inCollection = isCardAlreadyAdded(card);
+                                    const isAdding = Boolean(addingCardIds[String(card.id || '')]);
+                                    return (
+                                        <div
+                                            key={card.id || idx}
+                                            className="shelf-card"
+                                            style={{ cursor: inCollection ? 'default' : 'pointer' }}
+                                            onClick={() => {
+                                                if (!inCollection && !isAdding) {
+                                                    void handleAddTcgCard(card);
+                                                }
+                                            }}
+                                        >
+                                            {card.image ? (
+                                                <img src={card.image} className="shelf-card-image shelf-tcg-card-image" alt={card.name} />
+                                            ) : (
+                                                <div className="shelf-card-image shelf-tcg-card-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Image</div>
+                                            )}
+                                            <div className="shelf-card-content">
+                                                <div className="shelf-card-title">
+                                                    {card.name} {card.localId ? `#${card.localId}` : ''}
+                                                </div>
+                                                <div className="shelf-card-subtitle">{card.id}</div>
+                                                <div style={{
+                                                    fontSize: '12px',
+                                                    padding: '6px 16px',
+                                                    borderRadius: '100px',
+                                                    fontWeight: 600,
+                                                    backgroundColor: inCollection
+                                                        ? '#16a34a'
+                                                        : 'var(--interactive-accent)',
+                                                    color: inCollection
+                                                        ? '#ffffff'
+                                                        : 'var(--text-on-accent)',
+                                                    textAlign: 'center',
+                                                    marginTop: 'auto',
+                                                    alignSelf: 'flex-start',
+                                                    opacity: isAdding ? 0.7 : 1
+                                                }}>
+                                                    {inCollection ? 'In Collection' : isAdding ? 'Adding...' : 'Add Card'}
+                                                </div>
                                             </div>
-                                            <div className="shelf-card-subtitle">{card.id}</div>
-                                            <div style={{
-                                                fontSize: '12px',
-                                                padding: '6px 16px',
-                                                borderRadius: '100px',
-                                                fontWeight: 600,
-                                                backgroundColor: 'var(--interactive-accent)',
-                                                color: 'var(--text-on-accent)',
-                                                textAlign: 'center',
-                                                marginTop: 'auto',
-                                                alignSelf: 'flex-start'
-                                            }}>Add Card</div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                                 {!loading && apiResults.length === 0 && (
                                     <div style={{ color: 'var(--text-muted)', gridColumn: '1 / -1' }}>
                                         {binder.collectionSet ? 'No matching cards found in this set.' : 'Search for a Pokémon card above to add it to this collection.'}

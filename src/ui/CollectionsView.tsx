@@ -14,6 +14,7 @@ interface CollectionsViewProps {
     onRefreshSingleItem: (item: MediaItem) => Promise<boolean>;
     isRefreshing: boolean;
     setIsRefreshing: (val: boolean) => void;
+    collectionsVersion: number;
 }
 
 export const CollectionsView: React.FC<CollectionsViewProps> = ({
@@ -24,6 +25,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
     onRefreshSingleItem,
     isRefreshing,
     setIsRefreshing,
+    collectionsVersion,
 }) => {
     const [isAddToCollectionOpen, setIsAddToCollectionOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
@@ -32,22 +34,74 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
     const [filterReleaseState, setFilterReleaseState] = React.useState('All');
     const [sortMode, setSortMode] = React.useState<'Title' | 'Release Date' | 'Value'>('Title');
     const [sortAscending, setSortAscending] = React.useState(true);
-    const [, forceUpdate] = React.useReducer((x: number) => x + 1, 0);
+    const [vaultTick, bumpVaultTick] = React.useReducer((x: number) => x + 1, 0);
+
+    // Subscribe to vault folder create/delete/rename events so manual folder deletions or creations update immediately
+    React.useEffect(() => {
+        const { vault } = plugin.app;
+        const createRef = vault.on('create', () => bumpVaultTick());
+        const deleteRef = vault.on('delete', (file) => {
+            if (file instanceof TFolder && plugin.settings.collectionsData) {
+                const norm = normalizePath(file.path);
+                if (plugin.settings.collectionsData[norm]) {
+                    delete plugin.settings.collectionsData[norm];
+                    void plugin.saveSettings();
+                }
+                if (selectedBinderPath && normalizePath(selectedBinderPath).toLowerCase() === norm.toLowerCase()) {
+                    onSelectBinder(null);
+                }
+            }
+            bumpVaultTick();
+        });
+        const renameRef = vault.on('rename', (file, oldPath) => {
+            if (file instanceof TFolder && plugin.settings.collectionsData) {
+                const oldNorm = normalizePath(oldPath);
+                const newNorm = normalizePath(file.path);
+                if (plugin.settings.collectionsData[oldNorm]) {
+                    plugin.settings.collectionsData[newNorm] = {
+                        ...plugin.settings.collectionsData[oldNorm],
+                        name: file.name,
+                        folderPath: newNorm,
+                    };
+                    delete plugin.settings.collectionsData[oldNorm];
+                    void plugin.saveSettings();
+                }
+            }
+            bumpVaultTick();
+        });
+
+        return () => {
+            vault.offref(createRef);
+            vault.offref(deleteRef);
+            vault.offref(renameRef);
+        };
+    }, [plugin, selectedBinderPath, onSelectBinder]);
 
     const collectionItems = React.useMemo(
         () => items.filter(i => i.type === 'Collections'),
         [items]
     );
 
-    // Build unified list of Binders from settings + vault subfolders + items
+    // Build unified list of Binders strictly for folders that currently exist in the vault
     const binders = React.useMemo(() => {
         const map = new Map<string, CollectionBinderConfig>();
         const saved = plugin.settings.collectionsData || {};
+        let staleRemoved = false;
 
         for (const [key, cfg] of Object.entries(saved)) {
             const norm = normalizePath(cfg.folderPath || key);
-            // Only include if the folder still exists or has items or was configured
-            map.set(norm, { ...cfg, folderPath: norm });
+            const folderObj = plugin.app.vault.getAbstractFileByPath(norm);
+            if (folderObj instanceof TFolder) {
+                map.set(norm, { ...cfg, folderPath: norm });
+            } else {
+                // Folder was removed from vault; clean up stale entry
+                delete saved[key];
+                staleRemoved = true;
+            }
+        }
+
+        if (staleRemoved) {
+            void plugin.saveSettings();
         }
 
         // Discover subfolders inside collectionsDestinationFolder
@@ -68,11 +122,14 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             }
         }
 
-        // Enrich from items inside each folder
+        // Enrich from items inside each existing folder
         for (const item of collectionItems) {
             if (!item.collectionFolder) continue;
             const norm = normalizePath(item.collectionFolder);
             if (norm.toLowerCase() === parentPath.toLowerCase()) continue;
+
+            const folderObj = plugin.app.vault.getAbstractFileByPath(norm);
+            if (!(folderObj instanceof TFolder)) continue;
 
             const existing = map.get(norm) || {
                 name: item.collectionName || norm.split('/').pop() || 'Collection',
@@ -93,7 +150,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
         }
 
         return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-    }, [plugin.settings.collectionsData, plugin.settings.collectionsDestinationFolder, collectionItems, plugin.app.vault]);
+    }, [plugin, collectionItems, vaultTick, collectionsVersion]);
 
     // Backfill set logo & official card count if a binder has collectionSet but is missing coverUrl or totalCardsInSet
     React.useEffect(() => {
@@ -119,7 +176,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             }
             if (changed && !cancelled) {
                 await plugin.saveSettings();
-                forceUpdate();
+                bumpVaultTick();
             }
         };
         void enrichSets();
@@ -197,7 +254,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                     ) : (
                                         <div className="shelf-card-image" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-muted)' }}>
                                             <span style={{ fontSize: '32px' }}>{binder.collectionType === 'tcg' ? '🃏' : '🗂️'}</span>
-                                            <span style={{ fontSize: '12px' }}>{binder.collectionType === 'tcg' ? 'TCG Binder' : 'Collection'}</span>
+                                            <span style={{ fontSize: '12px' }}>{binder.collectionType === 'tcg' ? 'TCG Collection' : 'Collection'}</span>
                                         </div>
                                     )}
                                 </div>
@@ -240,13 +297,14 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
 
     // ================= OPENED COLLECTION (BINDER DETAIL VIEW) =================
     const normActiveFolder = normalizePath(activeBinder.folderPath).toLowerCase();
+    const isTcgBinder = activeBinder.collectionType === 'tcg';
     const binderItems = collectionItems.filter(
         i => normalizePath(i.collectionFolder || '').toLowerCase() === normActiveFolder
     );
 
     const collectedItems = binderItems.filter(i => i.collection);
     const collectedCount = collectedItems.length;
-    const totalTarget = (activeBinder.collectionType === 'tcg' && activeBinder.totalCardsInSet)
+    const totalTarget = (isTcgBinder && activeBinder.totalCardsInSet)
         ? activeBinder.totalCardsInSet
         : binderItems.length;
     const pctCollected = totalTarget > 0 ? Math.min(100, Math.round((collectedCount / totalTarget) * 100)) : 0;
@@ -347,7 +405,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                     <div>
                         <h2 style={{ margin: 0, fontSize: '1.25em' }}>{activeBinder.name}</h2>
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            {activeBinder.collectionType === 'tcg'
+                            {isTcgBinder
                                 ? `Trading Card Game • Pokémon${activeBinder.collectionSetName ? ` • ${activeBinder.collectionSetName}` : ''}`
                                 : 'Other Collection'}
                         </div>
@@ -398,7 +456,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
 
                 {/* Binder Action Buttons */}
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {activeBinder.collectionType === 'tcg' && (
+                    {isTcgBinder && (
                         <button
                             className="shelf-fab"
                             style={{ backgroundColor: 'var(--interactive-normal)', color: 'var(--text-normal)' }}
@@ -476,7 +534,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             </div>
 
             {/* Cards Grid */}
-            <div className="shelf-gallery">
+            <div className={`shelf-gallery ${isTcgBinder ? 'shelf-tcg-gallery' : ''}`}>
                 {processedItems.map(item => (
                     <div
                         key={item.id}
@@ -485,9 +543,13 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                     >
                         <div className="shelf-card-image-wrapper" style={{ position: 'relative', width: '100%' }}>
                             {item.coverUrl ? (
-                                <img src={item.coverUrl} className="shelf-card-image" alt={item.title} />
+                                <img
+                                    src={item.coverUrl}
+                                    className={`shelf-card-image ${isTcgBinder ? 'shelf-tcg-card-image' : ''}`}
+                                    alt={item.title}
+                                />
                             ) : (
-                                <div className="shelf-card-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Cover</div>
+                                <div className={`shelf-card-image ${isTcgBinder ? 'shelf-tcg-card-image' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Cover</div>
                             )}
                             {item.releaseState && (
                                 <div className={`shelf-card-release-banner state-${item.releaseState.toLowerCase().replace(' ', '-')}`}>
@@ -610,6 +672,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                 <AddToCollectionModal
                     plugin={plugin}
                     binder={activeBinder}
+                    existingItems={binderItems}
                     onClose={() => setIsAddToCollectionOpen(false)}
                 />
             )}
