@@ -10,7 +10,7 @@ import { getTMDBDetails } from '../api/tmdb';
 import { getIGDBDetails, fetchIGDBToken } from '../api/igdb';
 import { getGoogleBooksDetails } from '../api/googleBooks';
 import { getComicVineDetails } from '../api/comicVine';
-import { getPokemonCardDetails, calculateFrontmatterVariantsValue } from '../api/tcgdex';
+import { getPokemonCardDetails, calculateFrontmatterVariantsValue, calculateFrontmatterTotalVariantCount } from '../api/tcgdex';
 import { Notice } from 'obsidian';
 
 export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
@@ -343,6 +343,7 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     const valKey = mapped('currentValue') || 'currentValue';
                     const lastUpdKey = mapped('lastValueUpdate') || 'lastValueUpdate';
                     fm[valKey] = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
+                    fm.collection = calculateFrontmatterTotalVariantCount(fm as Record<string, ShelfAny>) > 0;
                     fm[lastUpdKey] = todayStr;
                 });
                 return true;

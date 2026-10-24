@@ -10,7 +10,8 @@ import {
     wildcardMatch,
     formatVariantLabel,
     VARIANT_KEY_ORDER,
-    calculateFrontmatterVariantsValue
+    calculateFrontmatterVariantsValue,
+    calculateFrontmatterTotalVariantCount
 } from '../api/tcgdex';
 import { AddToCollectionModal } from './AddToCollectionModal';
 
@@ -251,6 +252,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                 }
                             }
                             fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
+                            fm.collection = calculateFrontmatterTotalVariantCount(fm as Record<string, ShelfAny>) > 0;
                         });
                     }
                 } catch (e) {
@@ -264,7 +266,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
         };
     }, [activeBinder, collectionItems, plugin]);
 
-    // Ensure currentValue property stays equal to the sum of owned variant values if edited manually in YAML
+    // Ensure currentValue and collection properties stay synced with owned variant counts
     React.useEffect(() => {
         if (!activeBinder || activeBinder.collectionType !== 'tcg') return;
         const normActive = normalizePath(activeBinder.folderPath).toLowerCase();
@@ -278,8 +280,10 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
         );
         for (const item of binderCards) {
             let expectedSum = 0;
+            let totalQty = 0;
             for (const [vKey, vCount] of Object.entries(item.variants!)) {
                 const qty = typeof vCount === 'number' && !isNaN(vCount) ? Math.max(0, vCount) : 0;
+                totalQty += qty;
                 const unitVal = item.variantValues?.[`${vKey}Value`] ?? 0;
                 if (qty > 0 && typeof unitVal === 'number' && !isNaN(unitVal)) {
                     expectedSum += qty * unitVal;
@@ -287,9 +291,11 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             }
             const roundedExpected = Number(expectedSum.toFixed(2));
             const currentVal = item.currentValue !== undefined ? Number(item.currentValue.toFixed(2)) : NaN;
-            if (currentVal !== roundedExpected) {
+            const expectedCollection = totalQty > 0;
+            if (currentVal !== roundedExpected || Boolean(item.collection) !== expectedCollection) {
                 void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
                     fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
+                    fm.collection = calculateFrontmatterTotalVariantCount(fm as Record<string, ShelfAny>) > 0;
                 });
             }
         }
@@ -918,6 +924,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                                                 void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
                                                                     fm[vKey] = nextVal;
                                                                     fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
+                                                                    fm.collection = calculateFrontmatterTotalVariantCount(fm as Record<string, ShelfAny>) > 0;
                                                                 });
                                                             }}
                                                             disabled={!vCount || vCount <= 0}
@@ -952,6 +959,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                                                 void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
                                                                     fm[vKey] = nextVal;
                                                                     fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
+                                                                    fm.collection = calculateFrontmatterTotalVariantCount(fm as Record<string, ShelfAny>) > 0;
                                                                 });
                                                             }}
                                                             style={{

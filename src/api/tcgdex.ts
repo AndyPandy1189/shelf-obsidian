@@ -340,6 +340,19 @@ export function calculateFrontmatterVariantsValue(fm: Record<string, ShelfAny>):
     return Number(sum.toFixed(2));
 }
 
+export function calculateFrontmatterTotalVariantCount(fm: Record<string, ShelfAny>): number {
+    if (!fm || typeof fm !== 'object') return 0;
+    let totalCount = 0;
+    for (const [k, v] of Object.entries(fm)) {
+        if (k.startsWith('variant') && !k.endsWith('Value') && k.length > 7) {
+            const count = typeof v === 'number' ? v : parseInt(String(v), 10);
+            const qty = isNaN(count) ? 0 : Math.max(0, count);
+            totalCount += qty;
+        }
+    }
+    return totalCount;
+}
+
 export async function getPokemonCardDetails(cardId: string): Promise<{
     card: ShelfAny;
     releaseDate: string;
