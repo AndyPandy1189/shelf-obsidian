@@ -452,6 +452,10 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                         const totalValue = binderItems.reduce((sum, i) => sum + (i.currentValue || 0), 0);
                         const fallbackCover = binderItems.find(i => i.coverUrl)?.coverUrl;
                         const displayCover = binder.coverUrl || fallbackCover;
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        const binderReleaseState = binder.releaseDate
+                            ? (binder.releaseDate > todayStr ? 'Upcoming' : 'Released')
+                            : (binder.collectionType === 'tcg' ? (binderItems.find(i => i.releaseState)?.releaseState || 'Released') : undefined);
 
                         return (
                             <div
@@ -471,6 +475,11 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                         <div className="shelf-card-image" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-muted)' }}>
                                             <span style={{ fontSize: '32px' }}>{binder.collectionType === 'tcg' ? '🃏' : '🗂️'}</span>
                                             <span style={{ fontSize: '12px' }}>{binder.collectionType === 'tcg' ? 'TCG Collection' : 'Collection'}</span>
+                                        </div>
+                                    )}
+                                    {binderReleaseState && (
+                                        <div className={`shelf-card-release-banner state-${binderReleaseState.toLowerCase().replace(' ', '-')}`}>
+                                            {binderReleaseState}
                                         </div>
                                     )}
                                 </div>
@@ -804,11 +813,6 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                 />
                             ) : (
                                 <div className={`shelf-card-image ${isTcgBinder ? 'shelf-tcg-card-image' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Cover</div>
-                            )}
-                            {item.releaseState && (
-                                <div className={`shelf-card-release-banner state-${item.releaseState.toLowerCase().replace(' ', '-')}`}>
-                                    {item.releaseState}
-                                </div>
                             )}
                         </div>
                         <div
