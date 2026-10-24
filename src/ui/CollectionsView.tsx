@@ -327,6 +327,21 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
 
     // ================= TOP-LEVEL COLLECTIONS BINDER OVERVIEW =================
     if (!activeBinder) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const getBinderReleaseState = (b: CollectionBinderConfig): string | undefined => {
+            if (b.releaseDate) {
+                return b.releaseDate > todayStr ? 'Upcoming' : 'Released';
+            }
+            if (b.collectionType === 'tcg') {
+                const normFolder = normalizePath(b.folderPath).toLowerCase();
+                const bItems = collectionItems.filter(
+                    i => normalizePath(i.collectionFolder || '').toLowerCase() === normFolder
+                );
+                return bItems.find(i => i.releaseState)?.releaseState || 'Released';
+            }
+            return undefined;
+        };
+
         const availableCategories = Array.from(
             new Set([
                 'pokemon',
@@ -346,6 +361,16 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             displayedBinders = displayedBinders.filter(
                 b => (b.collectionCategory || '').toLowerCase() === filterBinderCategory.toLowerCase()
             );
+        }
+
+        if (filterReleaseState !== 'All') {
+            displayedBinders = displayedBinders.filter(b => {
+                const state = getBinderReleaseState(b);
+                if (filterReleaseState === 'Unknown') {
+                    return !state;
+                }
+                return state === filterReleaseState;
+            });
         }
 
         if (binderSearchQuery.trim() !== '') {
@@ -409,6 +434,16 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                     {cat === 'pokemon' ? 'Pokémon' : cat}
                                 </option>
                             ))}
+                        </select>
+                        <select
+                            value={filterReleaseState}
+                            onChange={e => setFilterReleaseState(e.target.value)}
+                            title="Filter by Release State"
+                        >
+                            <option value="All">All Releases</option>
+                            <option value="Upcoming">Upcoming</option>
+                            <option value="Released">Released</option>
+                            <option value="Unknown">Unknown</option>
                         </select>
                     </div>
                     <div className="action-group">
@@ -556,14 +591,6 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
         } else {
             const num = parseInt(filterRating);
             processedItems = processedItems.filter(item => item.rating === num);
-        }
-    }
-
-    if (filterReleaseState !== 'All') {
-        if (filterReleaseState === 'Unknown') {
-            processedItems = processedItems.filter(item => !item.releaseState);
-        } else {
-            processedItems = processedItems.filter(item => item.releaseState === filterReleaseState);
         }
     }
 
@@ -762,12 +789,6 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                         <option value="3">👍 Like (3)</option>
                         <option value="1">👎 Dislike (1)</option>
                         <option value="Unrated">Unrated</option>
-                    </select>
-                    <select value={filterReleaseState} onChange={e => setFilterReleaseState(e.target.value)} title="Filter by Release State">
-                        <option value="All">All Releases</option>
-                        <option value="Upcoming">Upcoming</option>
-                        <option value="Released">Released</option>
-                        <option value="Unknown">Unknown</option>
                     </select>
                 </div>
                 <div className="action-group">
