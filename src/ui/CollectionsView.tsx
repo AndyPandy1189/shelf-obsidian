@@ -171,17 +171,21 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
         return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
     }, [plugin, collectionItems, vaultTick, collectionsVersion]);
 
-    // Backfill set logo, official card count, and releaseDate if a binder has collectionSet
+    const formatCurrency = (val: number): string =>
+        val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Backfill set logo, total card count, official card count, and releaseDate if a binder has collectionSet
     React.useEffect(() => {
         let cancelled = false;
         const enrichSets = async () => {
             let changed = false;
             for (const b of binders) {
-                if (b.collectionType === 'tcg' && b.collectionSet && (!b.coverUrl || !b.totalCardsInSet || !b.releaseDate)) {
+                if (b.collectionType === 'tcg' && b.collectionSet && (!b.coverUrl || !b.totalCardsInSet || !b.officialCardsInSet || !b.releaseDate)) {
                     const setDetails = await getPokemonSetDetails(b.collectionSet);
                     if (setDetails && !cancelled) {
                         const logoUrl = formatTcgdexLogoUrl(setDetails.logo || setDetails.symbol, 'png');
-                        const totalCards = setDetails.cardCount?.official || setDetails.cardCount?.total;
+                        const totalCards = setDetails.cardCount?.total || setDetails.cardCount?.official;
+                        const officialCards = setDetails.cardCount?.official || setDetails.cardCount?.total;
                         const setReleaseDate = setDetails.releaseDate || undefined;
                         if (!plugin.settings.collectionsData) plugin.settings.collectionsData = {};
                         plugin.settings.collectionsData[b.folderPath] = {
@@ -189,6 +193,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                             coverUrl: logoUrl || b.coverUrl,
                             collectionSetName: setDetails.name || b.collectionSetName,
                             totalCardsInSet: totalCards || b.totalCardsInSet,
+                            officialCardsInSet: officialCards || b.officialCardsInSet,
                             releaseDate: setReleaseDate || b.releaseDate,
                         };
                         changed = true;
@@ -543,7 +548,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
 
                                     {binder.collectionType === 'tcg' && (
                                         <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--interactive-accent)', marginTop: 'auto' }}>
-                                            Value: ${totalValue.toFixed(2)}
+                                            Value: ${formatCurrency(totalValue)}
                                         </div>
                                     )}
                                 </div>
@@ -725,7 +730,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                     }}>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Collection Value</div>
                         <div style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e' }}>
-                            ${collectionValue.toFixed(2)}
+                            ${formatCurrency(collectionValue)}
                         </div>
                     </div>
 
@@ -883,11 +888,14 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                         <div className="shelf-card-content">
                             <div className="shelf-card-title">
                                 {item.title}
-                                {isTcgBinder && item.cardNumber && (
-                                    <span style={{ fontWeight: 500, color: 'var(--text-muted)', marginLeft: '6px', fontSize: '12px' }}>
-                                        {activeBinder.totalCardsInSet ? `#${item.cardNumber}/${activeBinder.totalCardsInSet}` : `#${item.cardNumber}`}
-                                    </span>
-                                )}
+                                {isTcgBinder && item.cardNumber && (() => {
+                                    const officialTotal = activeBinder.officialCardsInSet || activeBinder.totalCardsInSet;
+                                    return (
+                                        <span style={{ fontWeight: 500, color: 'var(--text-muted)', marginLeft: '6px', fontSize: '12px' }}>
+                                            {officialTotal ? `#${item.cardNumber}/${officialTotal}` : `#${item.cardNumber}`}
+                                        </span>
+                                    );
+                                })()}
                             </div>
                             {item.releaseDate && <div className="shelf-card-subtitle">{item.releaseDate}</div>}
                             {item.cardRarity && (
@@ -937,7 +945,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                                             {formatVariantLabel(vKey)}
                                                         </span>
                                                         <span style={{ color: '#22c55e', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                                            {unitVal !== undefined ? `$${unitVal.toFixed(2)}` : '—'}
+                                                            {unitVal !== undefined ? `$${formatCurrency(unitVal)}` : '—'}
                                                         </span>
                                                     </div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -1025,7 +1033,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                             }}
                                             title={item.lastValueUpdate ? `Last updated: ${item.lastValueUpdate}` : 'Value (USD)'}
                                         >
-                                            {item.currentValue !== undefined ? `$${item.currentValue.toFixed(2)}` : '—'}
+                                            {item.currentValue !== undefined ? `$${formatCurrency(item.currentValue)}` : '—'}
                                         </div>
                                     )}
 

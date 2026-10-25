@@ -12,6 +12,7 @@ export interface CollectionBinderConfig {
 	collectionSetName?: string;
 	coverUrl?: string;
 	totalCardsInSet?: number;
+	officialCardsInSet?: number;
 	releaseDate?: string;
 }
 

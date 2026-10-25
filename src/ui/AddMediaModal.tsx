@@ -89,6 +89,7 @@ export const AddMediaModal = ({
             let coverUrl = '';
             let setName = '';
             let totalCardsInSet: number | undefined = undefined;
+            let officialCardsInSet: number | undefined = undefined;
             let setReleaseDate = '';
 
             if (collectionType === 'tcg' && collectionSet) {
@@ -96,7 +97,8 @@ export const AddMediaModal = ({
                 if (setDetails) {
                     coverUrl = formatTcgdexLogoUrl(setDetails.logo || setDetails.symbol, 'png');
                     setName = setDetails.name || collectionSet;
-                    totalCardsInSet = setDetails.cardCount?.official || setDetails.cardCount?.total || undefined;
+                    totalCardsInSet = setDetails.cardCount?.total || setDetails.cardCount?.official || undefined;
+                    officialCardsInSet = setDetails.cardCount?.official || setDetails.cardCount?.total || undefined;
                     setReleaseDate = setDetails.releaseDate || '';
                 }
             }
@@ -114,6 +116,7 @@ export const AddMediaModal = ({
                 collectionSetName: setName || undefined,
                 coverUrl: coverUrl || undefined,
                 totalCardsInSet,
+                officialCardsInSet,
                 releaseDate: setReleaseDate || undefined,
             };
 

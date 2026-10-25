@@ -292,7 +292,7 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({
                                 {apiResults.map((card, idx) => {
                                     const inCollection = isCardAlreadyAdded(card);
                                     const isAdding = Boolean(addingCardIds[String(card.id || '')]);
-                                    const totalInSet = card.totalCardsInSet || binder.totalCardsInSet;
+                                    const officialInSet = card.officialCardsInSet || binder.officialCardsInSet || card.totalCardsInSet || binder.totalCardsInSet;
                                     return (
                                         <div
                                             key={card.id || idx}
@@ -314,7 +314,7 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({
                                                     {card.name}
                                                     {card.localId && (
                                                         <span style={{ fontWeight: 500, color: 'var(--text-muted)', marginLeft: '6px', fontSize: '12px' }}>
-                                                            {totalInSet ? `#${card.localId}/${totalInSet}` : `#${card.localId}`}
+                                                            {officialInSet ? `#${card.localId}/${officialInSet}` : `#${card.localId}`}
                                                         </span>
                                                     )}
                                                 </div>
