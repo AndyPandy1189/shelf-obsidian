@@ -166,6 +166,8 @@ export const VARIANT_KEY_ORDER = [
     'variantNormal',
     'variantHolo',
     'variantReverse',
+    'variantPokeball',
+    'variantMasterball',
     'variantFirstEdition',
     'variantWPromo',
 ];
@@ -180,6 +182,8 @@ export function formatVariantLabel(propName: string): string {
         case 'variantNormal': return 'Normal';
         case 'variantHolo': return 'Holo';
         case 'variantReverse': return 'Reverse';
+        case 'variantPokeball': return 'Poké Ball';
+        case 'variantMasterball': return 'Master Ball';
         case 'variantFirstEdition': return '1st Edition';
         case 'variantWPromo': return 'W Promo';
         default: {
@@ -192,22 +196,32 @@ export function formatVariantLabel(propName: string): string {
 export function extractApplicableVariants(card: ShelfAny): Record<string, number> {
     const result: Record<string, number> = {};
     const variantsObj = card?.variants;
-    if (!variantsObj || typeof variantsObj !== 'object') return result;
-
-    const orderedRawKeys = ['normal', 'holo', 'reverse', 'firstEdition', 'wPromo'];
-    for (const k of orderedRawKeys) {
-        if (variantsObj[k] === true) {
-            result[toVariantPropertyName(k)] = 0;
+    if (variantsObj && typeof variantsObj === 'object') {
+        const orderedRawKeys = ['normal', 'holo', 'reverse', 'firstEdition', 'wPromo'];
+        for (const k of orderedRawKeys) {
+            if (variantsObj[k] === true) {
+                result[toVariantPropertyName(k)] = 0;
+            }
         }
-    }
-    for (const [k, v] of Object.entries(variantsObj)) {
-        if (v === true) {
-            const prop = toVariantPropertyName(k);
-            if (!(prop in result)) {
-                result[prop] = 0;
+        for (const [k, v] of Object.entries(variantsObj)) {
+            if (v === true) {
+                const prop = toVariantPropertyName(k);
+                if (!(prop in result)) {
+                    result[prop] = 0;
+                }
             }
         }
     }
+
+    const detailed: ShelfAny[] = Array.isArray(card?.variants_detailed) ? card.variants_detailed : [];
+    for (const d of detailed) {
+        if (d?.foil === 'pokeball') {
+            result['variantPokeball'] = 0;
+        } else if (d?.foil === 'masterball') {
+            result['variantMasterball'] = 0;
+        }
+    }
+
     return result;
 }
 
@@ -282,7 +296,7 @@ export function extractVariantValues(card: ShelfAny, applicableVariants?: Record
             val = extractPriceFromEntry(tcgp['reverse-holofoil']) ?? extractPriceFromEntry(tcgp['reverseHolofoil']);
             if (val === null) {
                 for (const d of detailed) {
-                    if (d?.type === 'reverse') {
+                    if (d?.type === 'reverse' && !d?.foil) {
                         const dTcgp = d?.pricing?.tcgplayer;
                         val = extractPriceFromEntry(dTcgp?.['reverse-holofoil']) ?? extractPriceFromEntry(dTcgp?.reverseHolofoil);
                         if (val !== null) break;
@@ -292,6 +306,26 @@ export function extractVariantValues(card: ShelfAny, applicableVariants?: Record
             if (val === null) {
                 const cmVal = cm['trend-holo'] ?? cm['avg-holo'];
                 if (typeof cmVal === 'number' && !isNaN(cmVal)) val = Number(cmVal.toFixed(2));
+            }
+        } else if (vKey === 'variantPokeball' || vKey === 'variantMasterball') {
+            const targetFoil = vKey === 'variantPokeball' ? 'pokeball' : 'masterball';
+            for (const d of detailed) {
+                if (d?.foil === targetFoil) {
+                    const dTcgp = d?.pricing?.tcgplayer;
+                    val =
+                        extractPriceFromEntry(dTcgp?.holofoil) ??
+                        extractPriceFromEntry(dTcgp?.['reverse-holofoil']) ??
+                        extractPriceFromEntry(dTcgp?.reverseHolofoil) ??
+                        extractPriceFromEntry(dTcgp?.normal);
+                    if (val === null) {
+                        const dCm = d?.pricing?.cardmarket;
+                        const cmVal = dCm?.['trend-holo'] ?? dCm?.['avg-holo'] ?? dCm?.trend ?? dCm?.avg;
+                        if (typeof cmVal === 'number' && !isNaN(cmVal)) {
+                            val = Number(cmVal.toFixed(2));
+                        }
+                    }
+                    if (val !== null) break;
+                }
             }
         } else if (vKey === 'variantFirstEdition') {
             val =

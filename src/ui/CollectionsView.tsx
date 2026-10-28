@@ -232,7 +232,12 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                     !i.variants ||
                     Object.keys(i.variants).length === 0 ||
                     !i.variantValues ||
-                    Object.keys(i.variantValues).length === 0
+                    Object.keys(i.variantValues).length === 0 ||
+                    (
+                        i.variants?.variantReverse !== undefined &&
+                        i.variants?.variantPokeball === undefined &&
+                        /^(sv08\.5|sv10\.5)/i.test(String(i.collectionSet || activeBinder.collectionSet || i.externalId || ''))
+                    )
                 ) &&
                 !backfilledCardIdsRef.current.has(i.id)
         );
