@@ -230,7 +230,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                 i.externalId &&
                 (
                     !i.variants ||
-                    Object.keys(i.variants).length === 0 ||
+                    Object.keys(i.variants).length <= 1 ||
                     !i.variantValues ||
                     Object.keys(i.variantValues).length === 0 ||
                     (
@@ -251,6 +251,15 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                     const details = await getPokemonCardDetails(item.externalId!);
                     if (details && details.variants && Object.keys(details.variants).length > 0 && !cancelled) {
                         await plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                            for (const [k, v] of Object.entries(fm as Record<string, ShelfAny>)) {
+                                if (k.startsWith('variant') && !k.endsWith('Value') && k.length > 7) {
+                                    const qty = typeof v === 'number' ? v : parseInt(String(v), 10);
+                                    if (!(k in details.variants) && (!qty || qty <= 0)) {
+                                        delete fm[k];
+                                        delete fm[`${k}Value`];
+                                    }
+                                }
+                            }
                             for (const vKey of Object.keys(details.variants)) {
                                 if (fm[vKey] === undefined || fm[vKey] === null || fm[vKey] === '') {
                                     fm[vKey] = 0;

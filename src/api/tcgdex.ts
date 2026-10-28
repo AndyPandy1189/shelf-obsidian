@@ -194,32 +194,72 @@ export function formatVariantLabel(propName: string): string {
 }
 
 export function extractApplicableVariants(card: ShelfAny): Record<string, number> {
-    const result: Record<string, number> = {};
+    const found = new Set<string>();
+    const detailed: ShelfAny[] = Array.isArray(card?.variants_detailed) ? card.variants_detailed : [];
+    const isGeneratedOnly =
+        detailed.length > 0 &&
+        detailed.every(d => d?.variantId === 'generated');
+
+    const tcgpRaw = card?.pricing?.tcgplayer;
+    const tcgp = tcgpRaw && typeof tcgpRaw === 'object'
+        ? (tcgpRaw.prices && typeof tcgpRaw.prices === 'object' ? tcgpRaw.prices : tcgpRaw)
+        : {};
+
+    const tcgpVariants = new Set<string>();
+    if ((tcgp['normal'] && typeof tcgp['normal'] === 'object') || (tcgp['unlimited'] && typeof tcgp['unlimited'] === 'object')) {
+        tcgpVariants.add('variantNormal');
+    }
+    if ((tcgp['holofoil'] && typeof tcgp['holofoil'] === 'object') || (tcgp['unlimited-holofoil'] && typeof tcgp['unlimited-holofoil'] === 'object')) {
+        tcgpVariants.add('variantHolo');
+    }
+    if ((tcgp['reverse-holofoil'] && typeof tcgp['reverse-holofoil'] === 'object') || (tcgp['reverseHolofoil'] && typeof tcgp['reverseHolofoil'] === 'object')) {
+        tcgpVariants.add('variantReverse');
+    }
+    if (
+        (tcgp['1st-edition'] && typeof tcgp['1st-edition'] === 'object') ||
+        (tcgp['1st-edition-holofoil'] && typeof tcgp['1st-edition-holofoil'] === 'object') ||
+        (tcgp['1stEdition'] && typeof tcgp['1stEdition'] === 'object') ||
+        (tcgp['1stEditionHolofoil'] && typeof tcgp['1stEditionHolofoil'] === 'object')
+    ) {
+        tcgpVariants.add('variantFirstEdition');
+    }
+
     const variantsObj = card?.variants;
-    if (variantsObj && typeof variantsObj === 'object') {
+    if (variantsObj && typeof variantsObj === 'object' && !(isGeneratedOnly && tcgpVariants.size > 0)) {
         const orderedRawKeys = ['normal', 'holo', 'reverse', 'firstEdition', 'wPromo'];
         for (const k of orderedRawKeys) {
             if (variantsObj[k] === true) {
-                result[toVariantPropertyName(k)] = 0;
+                found.add(toVariantPropertyName(k));
             }
         }
         for (const [k, v] of Object.entries(variantsObj)) {
             if (v === true) {
-                const prop = toVariantPropertyName(k);
-                if (!(prop in result)) {
-                    result[prop] = 0;
-                }
+                found.add(toVariantPropertyName(k));
             }
         }
     }
 
-    const detailed: ShelfAny[] = Array.isArray(card?.variants_detailed) ? card.variants_detailed : [];
+    for (const vKey of tcgpVariants) {
+        found.add(vKey);
+    }
+
     for (const d of detailed) {
         if (d?.foil === 'pokeball') {
-            result['variantPokeball'] = 0;
+            found.add('variantPokeball');
         } else if (d?.foil === 'masterball') {
-            result['variantMasterball'] = 0;
+            found.add('variantMasterball');
         }
+    }
+
+    const result: Record<string, number> = {};
+    for (const key of VARIANT_KEY_ORDER) {
+        if (found.has(key)) {
+            result[key] = 0;
+            found.delete(key);
+        }
+    }
+    for (const key of found) {
+        result[key] = 0;
     }
 
     return result;

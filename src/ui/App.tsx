@@ -322,6 +322,15 @@ export const App = ({ plugin }: { plugin: ShelfPlugin }) => {
                     if (illKey && card.illustrator) fm[illKey] = [card.illustrator];
 
                     if (variants && typeof variants === 'object') {
+                        for (const [k, v] of Object.entries(fm as Record<string, ShelfAny>)) {
+                            if (k.startsWith('variant') && !k.endsWith('Value') && k.length > 7) {
+                                const qty = typeof v === 'number' ? v : parseInt(String(v), 10);
+                                if (!(k in variants) && (!qty || qty <= 0)) {
+                                    delete fm[k];
+                                    delete fm[`${k}Value`];
+                                }
+                            }
+                        }
                         for (const vKey of Object.keys(variants)) {
                             const existingVal = fm[vKey];
                             if (existingVal === undefined || existingVal === null || existingVal === '') {
