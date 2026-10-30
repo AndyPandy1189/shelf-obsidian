@@ -51,39 +51,91 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
     const [sortMode, setSortMode] = React.useState<'Set Order' | 'Title' | 'Release Date' | 'Value'>('Set Order');
     const [sortAscending, setSortAscending] = React.useState(true);
     const [vaultTick, bumpVaultTick] = React.useReducer((x: number) => x + 1, 0);
+    const [optimisticVariants, setOptimisticVariants] = React.useState<Record<string, Record<string, number>>>({});
+    const latestOptimisticVariantsRef = React.useRef<Record<string, Record<string, number>>>({});
+    const pendingVariantTimersRef = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+    // Clean up any pending timers on unmount
+    React.useEffect(() => {
+        const timers = pendingVariantTimersRef.current;
+        return () => {
+            for (const timer of Object.values(timers)) {
+                clearTimeout(timer);
+            }
+        };
+    }, []);
+
+    const handleVariantDelta = React.useCallback((item: MediaItem, vKey: string, delta: number) => {
+        const currentVariants = latestOptimisticVariantsRef.current[item.id] ?? item.variants ?? {};
+        const currentCount = currentVariants[vKey] || 0;
+        const nextVal = Math.max(0, currentCount + delta);
+        if (nextVal === currentCount) return;
+
+        const nextVariants = { ...currentVariants, [vKey]: nextVal };
+        latestOptimisticVariantsRef.current[item.id] = nextVariants;
+        setOptimisticVariants(prev => ({
+            ...prev,
+            [item.id]: nextVariants,
+        }));
+
+        if (pendingVariantTimersRef.current[item.id]) {
+            clearTimeout(pendingVariantTimersRef.current[item.id]);
+        }
+
+        pendingVariantTimersRef.current[item.id] = setTimeout(() => {
+            delete pendingVariantTimersRef.current[item.id];
+            const targetVariants = latestOptimisticVariantsRef.current[item.id];
+            if (!targetVariants) return;
+            void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
+                for (const [k, qty] of Object.entries(targetVariants)) {
+                    fm[k] = qty;
+                }
+                fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
+                fm.collection = calculateFrontmatterTotalVariantCount(fm as Record<string, ShelfAny>) > 0;
+            });
+        }, 120);
+    }, [plugin]);
 
     // Subscribe to vault folder create/delete/rename events so manual folder deletions or creations update immediately
     React.useEffect(() => {
         const { vault } = plugin.app;
-        const createRef = vault.on('create', () => bumpVaultTick());
-        const deleteRef = vault.on('delete', (file) => {
-            if (file instanceof TFolder && plugin.settings.collectionsData) {
-                const norm = normalizePath(file.path);
-                if (plugin.settings.collectionsData[norm]) {
-                    delete plugin.settings.collectionsData[norm];
-                    void plugin.saveSettings();
-                }
-                if (selectedBinderPath && normalizePath(selectedBinderPath).toLowerCase() === norm.toLowerCase()) {
-                    onSelectBinder(null);
-                }
+        const createRef = vault.on('create', (file) => {
+            if (file instanceof TFolder) {
+                bumpVaultTick();
             }
-            bumpVaultTick();
+        });
+        const deleteRef = vault.on('delete', (file) => {
+            if (file instanceof TFolder) {
+                if (plugin.settings.collectionsData) {
+                    const norm = normalizePath(file.path);
+                    if (plugin.settings.collectionsData[norm]) {
+                        delete plugin.settings.collectionsData[norm];
+                        void plugin.saveSettings();
+                    }
+                    if (selectedBinderPath && normalizePath(selectedBinderPath).toLowerCase() === norm.toLowerCase()) {
+                        onSelectBinder(null);
+                    }
+                }
+                bumpVaultTick();
+            }
         });
         const renameRef = vault.on('rename', (file, oldPath) => {
-            if (file instanceof TFolder && plugin.settings.collectionsData) {
-                const oldNorm = normalizePath(oldPath);
-                const newNorm = normalizePath(file.path);
-                if (plugin.settings.collectionsData[oldNorm]) {
-                    plugin.settings.collectionsData[newNorm] = {
-                        ...plugin.settings.collectionsData[oldNorm],
-                        name: file.name,
-                        folderPath: newNorm,
-                    };
-                    delete plugin.settings.collectionsData[oldNorm];
-                    void plugin.saveSettings();
+            if (file instanceof TFolder) {
+                if (plugin.settings.collectionsData) {
+                    const oldNorm = normalizePath(oldPath);
+                    const newNorm = normalizePath(file.path);
+                    if (plugin.settings.collectionsData[oldNorm]) {
+                        plugin.settings.collectionsData[newNorm] = {
+                            ...plugin.settings.collectionsData[oldNorm],
+                            name: file.name,
+                            folderPath: newNorm,
+                        };
+                        delete plugin.settings.collectionsData[oldNorm];
+                        void plugin.saveSettings();
+                    }
                 }
+                bumpVaultTick();
             }
-            bumpVaultTick();
         });
 
         return () => {
@@ -93,14 +145,58 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
         };
     }, [plugin, selectedBinderPath, onSelectBinder]);
 
-    const collectionItems = React.useMemo(
-        () => items.filter(i => i.type === 'Collections'),
-        [items]
-    );
+    // Clear resolved optimistic variant entries once the underlying item cache catches up
+    React.useEffect(() => {
+        setOptimisticVariants(prev => {
+            const keys = Object.keys(prev);
+            if (keys.length === 0) return prev;
+            let changed = false;
+            const next = { ...prev };
+            for (const itemId of keys) {
+                if (pendingVariantTimersRef.current[itemId]) continue;
+                const item = items.find(i => i.id === itemId);
+                if (!item || !item.variants) continue;
+                const opt = prev[itemId];
+                const allMatch = Object.entries(opt).every(([k, v]) => (item.variants?.[k] ?? 0) === v);
+                if (allMatch) {
+                    delete next[itemId];
+                    delete latestOptimisticVariantsRef.current[itemId];
+                    changed = true;
+                }
+            }
+            return changed ? next : prev;
+        });
+    }, [items]);
+
+    const collectionItems = React.useMemo(() => {
+        return items
+            .filter(i => i.type === 'Collections')
+            .map(item => {
+                const optVariants = optimisticVariants[item.id];
+                if (!optVariants) return item;
+                let totalQty = 0;
+                let totalVal = 0;
+                for (const [vKey, qty] of Object.entries(optVariants)) {
+                    const safeQty = typeof qty === 'number' && !isNaN(qty) ? Math.max(0, qty) : 0;
+                    totalQty += safeQty;
+                    const unitVal = item.variantValues?.[`${vKey}Value`] ?? 0;
+                    if (safeQty > 0 && typeof unitVal === 'number' && !isNaN(unitVal)) {
+                        totalVal += safeQty * unitVal;
+                    }
+                }
+                return {
+                    ...item,
+                    variants: optVariants,
+                    currentValue: Number(totalVal.toFixed(2)),
+                    collection: totalQty > 0,
+                };
+            });
+    }, [items, optimisticVariants]);
 
     // Build unified list of Binders strictly for folders that currently exist in the vault
     const binders = React.useMemo(() => {
         const map = new Map<string, CollectionBinderConfig>();
+        const folderValidCache = new Map<string, boolean>();
         const saved = plugin.settings.collectionsData || {};
         let staleRemoved = false;
 
@@ -109,7 +205,9 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             const folderObj = plugin.app.vault.getAbstractFileByPath(norm);
             if (folderObj instanceof TFolder) {
                 map.set(norm, { ...cfg, folderPath: norm });
+                folderValidCache.set(norm, true);
             } else {
+                folderValidCache.set(norm, false);
                 // Folder was removed from vault; clean up stale entry
                 delete saved[key];
                 staleRemoved = true;
@@ -127,6 +225,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             for (const child of parentFolder.children) {
                 if (child instanceof TFolder) {
                     const norm = normalizePath(child.path);
+                    folderValidCache.set(norm, true);
                     if (!map.has(norm)) {
                         map.set(norm, {
                             name: child.name,
@@ -144,8 +243,13 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
             const norm = normalizePath(item.collectionFolder);
             if (norm.toLowerCase() === parentPath.toLowerCase()) continue;
 
-            const folderObj = plugin.app.vault.getAbstractFileByPath(norm);
-            if (!(folderObj instanceof TFolder)) continue;
+            let isFolder = folderValidCache.get(norm);
+            if (isFolder === undefined) {
+                const folderObj = plugin.app.vault.getAbstractFileByPath(norm);
+                isFolder = folderObj instanceof TFolder;
+                folderValidCache.set(norm, isFolder);
+            }
+            if (!isFolder) continue;
 
             const existing = map.get(norm) || {
                 name: item.collectionName || norm.split('/').pop() || 'Collection',
@@ -218,6 +322,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
     }, [selectedBinderPath, binders]);
 
     const backfilledCardIdsRef = React.useRef<Set<string>>(new Set());
+    const syncedCardIdsRef = React.useRef<Set<string>>(new Set());
 
     // Backfill applicable variant* and variant*Value properties for any existing TCG cards in the active binder that don't have them yet
     React.useEffect(() => {
@@ -230,7 +335,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                 i.externalId &&
                 (
                     !i.variants ||
-                    Object.keys(i.variants).length <= 1 ||
+                    Object.keys(i.variants).length === 0 ||
                     !i.variantValues ||
                     Object.keys(i.variantValues).length === 0 ||
                     (
@@ -285,19 +390,22 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
         };
     }, [activeBinder, collectionItems, plugin]);
 
-    // Ensure currentValue and collection properties stay synced with owned variant counts
+    // Ensure currentValue and collection properties stay synced with owned variant counts on initial binder load
     React.useEffect(() => {
         if (!activeBinder || activeBinder.collectionType !== 'tcg') return;
         const normActive = normalizePath(activeBinder.folderPath).toLowerCase();
         const binderCards = collectionItems.filter(
             i =>
                 normalizePath(i.collectionFolder || '').toLowerCase() === normActive &&
+                !syncedCardIdsRef.current.has(i.id) &&
+                !pendingVariantTimersRef.current[i.id] &&
                 i.variants &&
                 Object.keys(i.variants).length > 0 &&
                 i.variantValues &&
                 Object.keys(i.variantValues).length > 0
         );
         for (const item of binderCards) {
+            syncedCardIdsRef.current.add(item.id);
             let expectedSum = 0;
             let totalQty = 0;
             for (const [vKey, vCount] of Object.entries(item.variants!)) {
@@ -967,12 +1075,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                                             type="button"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                const nextVal = Math.max(0, (vCount || 0) - 1);
-                                                                void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
-                                                                    fm[vKey] = nextVal;
-                                                                    fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
-                                                                    fm.collection = calculateFrontmatterTotalVariantCount(fm as Record<string, ShelfAny>) > 0;
-                                                                });
+                                                                handleVariantDelta(item, vKey, -1);
                                                             }}
                                                             disabled={!vCount || vCount <= 0}
                                                             style={{
@@ -1002,12 +1105,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                                                             type="button"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                const nextVal = (vCount || 0) + 1;
-                                                                void plugin.app.fileManager.processFrontMatter(item.file, (fm: ShelfAny) => {
-                                                                    fm[vKey] = nextVal;
-                                                                    fm.currentValue = calculateFrontmatterVariantsValue(fm as Record<string, ShelfAny>);
-                                                                    fm.collection = calculateFrontmatterTotalVariantCount(fm as Record<string, ShelfAny>) > 0;
-                                                                });
+                                                                handleVariantDelta(item, vKey, 1);
                                                             }}
                                                             style={{
                                                                 width: '20px',

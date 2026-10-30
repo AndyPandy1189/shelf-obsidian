@@ -40,20 +40,32 @@ export const AddToCollectionModal: React.FC<AddToCollectionModalProps> = ({
         }
     }, [isTcg, mode, binder.collectionSet]);
 
+    const { existingExternalIds, existingPaths } = React.useMemo(() => {
+        const extIds = new Set<string>();
+        const paths = new Set<string>();
+        for (const item of existingItems) {
+            if (item.externalId) {
+                extIds.add(String(item.externalId));
+            }
+            paths.add(normalizePath(item.file.path).toLowerCase());
+        }
+        return { existingExternalIds: extIds, existingPaths: paths };
+    }, [existingItems]);
+
     const isCardAlreadyAdded = React.useCallback((cardSummary: ShelfAny): boolean => {
         const cardId = String(cardSummary.id || '');
         if (!cardId) return false;
         if (addedCardIds[cardId]) return true;
-        if (existingItems.some(i => String(i.externalId || '') === cardId)) return true;
+        if (existingExternalIds.has(cardId)) return true;
 
         const suffix = cardSummary.localId ? `${cardSummary.localId}` : `${cardId}`;
         const rawName = `${cardSummary.name || 'Card'} - ${suffix}`;
         const safeFileName = rawName.replace(/:/g, ' -').replace(/[\\/"*?<>|]/g, '').trim();
-        const expectedPath = normalizePath(`${binder.folderPath}/${safeFileName}.md`);
-        if (plugin.app.vault.getAbstractFileByPath(expectedPath)) return true;
+        const expectedPath = normalizePath(`${binder.folderPath}/${safeFileName}.md`).toLowerCase();
+        if (existingPaths.has(expectedPath)) return true;
 
         return false;
-    }, [addedCardIds, existingItems, binder.folderPath, plugin.app.vault]);
+    }, [addedCardIds, existingExternalIds, existingPaths, binder.folderPath]);
 
     const handleSearchTcg = async (e: React.FormEvent) => {
         e.preventDefault();

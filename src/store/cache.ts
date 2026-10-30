@@ -31,6 +31,25 @@ export interface MediaItem {
     variantValues?: Record<string, number>;
 }
 
+// Cache compiled template variable mappings by template string
+const templateVarCache = new Map<string, Record<string, string>>();
+
+function resolveTemplateVar(template: string, variable: string): string {
+    let varMap = templateVarCache.get(template);
+    if (!varMap) {
+        varMap = {};
+        templateVarCache.set(template, varMap);
+    }
+    if (varMap[variable] !== undefined) {
+        return varMap[variable];
+    }
+    const regex = new RegExp(`^\\s*([^:\\n]+):.*\\{\\{${variable}\\}\\}`, 'm');
+    const match = template.match(regex);
+    const resolved = match ? match[1].trim() : variable;
+    varMap[variable] = resolved;
+    return resolved;
+}
+
 // React Hook to subscribe to Obsidian metadata changes
 export function useMediaLibrary(plugin: ShelfPlugin) {
     const [mediaItems, setMediaItems] = React.useState<MediaItem[]>([]);
@@ -46,7 +65,7 @@ export function useMediaLibrary(plugin: ShelfPlugin) {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Dynamic API response
         loadInitialData();
 
-        // Listen for changes
+        // Listen for single-file metadata changes
         const eventRef = app.metadataCache.on('changed', (file, data, cache) => {
             const updatedItem = parseFileToMediaItem(plugin, file, cache);
             setMediaItems(prev => {
@@ -68,13 +87,23 @@ export function useMediaLibrary(plugin: ShelfPlugin) {
             });
         });
 
+        // Only run full reload once when Obsidian finishes its initial startup index
+        let hasResolvedOnce = false;
         const resolvedRef = app.metadataCache.on('resolved', () => {
-            void loadInitialData();
+            if (!hasResolvedOnce) {
+                hasResolvedOnce = true;
+                void loadInitialData();
+            }
         });
 
         const createRef = app.vault.on('create', (file) => {
             if (file instanceof TFile && file.extension === 'md') {
-                const updatedItem = parseFileToMediaItem(plugin, file);
+                const cache = app.metadataCache.getFileCache(file);
+                if (!cache?.frontmatter) {
+                    // Wait for metadataCache.on('changed') which fires once frontmatter is parsed
+                    return;
+                }
+                const updatedItem = parseFileToMediaItem(plugin, file, cache);
                 if (updatedItem) {
                     setMediaItems(prev => {
                         const index = prev.findIndex(item => item.id === file.path);
@@ -205,20 +234,15 @@ function parseFileToMediaItem(plugin: ShelfPlugin, file: TFile, passedCache?: Sh
         return s === '' ? undefined : s;
     };
 
-    const t = (variable: string) => {
-        let template = '';
-        if (typeStr === 'Movies') template = plugin.settings.movieTemplate;
-        else if (typeStr === 'TV') template = plugin.settings.tvTemplate;
-        else if (typeStr === 'Games') template = plugin.settings.gameTemplate;
-        else if (typeStr === 'Books') template = plugin.settings.bookTemplate;
-        else if (typeStr === 'Comics & Manga') template = plugin.settings.comicMangaTemplate;
-        else if (typeStr === 'Collections') template = `${plugin.settings.tcgPokemonTemplate}\n${plugin.settings.otherCollectionTemplate}`;
+    let template = '';
+    if (typeStr === 'Movies') template = plugin.settings.movieTemplate;
+    else if (typeStr === 'TV') template = plugin.settings.tvTemplate;
+    else if (typeStr === 'Games') template = plugin.settings.gameTemplate;
+    else if (typeStr === 'Books') template = plugin.settings.bookTemplate;
+    else if (typeStr === 'Comics & Manga') template = plugin.settings.comicMangaTemplate;
+    else if (typeStr === 'Collections') template = `${plugin.settings.tcgPokemonTemplate}\n${plugin.settings.otherCollectionTemplate}`;
 
-        const regex = new RegExp(`^\\s*([^:\\n]+):.*\\{\\{${variable}\\}\\}`, 'm');
-        const match = template.match(regex);
-        if (match) return match[1].trim();
-        return variable;
-    };
+    const t = (variable: string) => resolveTemplateVar(template, variable);
 
     const rawVal = fm[t('currentValue')] ?? fm['currentValue'] ?? fm['value'];
     let parsedValue: number | undefined = undefined;
