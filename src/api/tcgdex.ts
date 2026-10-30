@@ -248,7 +248,19 @@ export function extractApplicableVariants(card: ShelfAny): Record<string, number
             found.add('variantPokeball');
         } else if (d?.foil === 'masterball') {
             found.add('variantMasterball');
+        } else if (d?.type === 'reverse' || (Array.isArray(d?.stamp) && d.stamp.includes('set-logo'))) {
+            found.add('variantReverse');
         }
+    }
+
+    const cm = card?.pricing?.cardmarket && typeof card.pricing.cardmarket === 'object'
+        ? card.pricing.cardmarket
+        : {};
+    const hasCmHoloPrice =
+        (typeof cm['trend-holo'] === 'number' && !isNaN(cm['trend-holo']) && cm['trend-holo'] > 0) ||
+        (typeof cm['avg-holo'] === 'number' && !isNaN(cm['avg-holo']) && cm['avg-holo'] > 0);
+    if (found.has('variantNormal') && !found.has('variantHolo') && hasCmHoloPrice) {
+        found.add('variantReverse');
     }
 
     const result: Record<string, number> = {};
@@ -329,14 +341,16 @@ export function extractVariantValues(card: ShelfAny, applicableVariants?: Record
                 }
             }
             if (val === null) {
-                const cmVal = cm['trend-holo'] ?? cm['avg-holo'] ?? cm.trend ?? cm.avg;
+                const cmVal = ('variantReverse' in vars)
+                    ? (cm.trend ?? cm.avg ?? cm['trend-holo'] ?? cm['avg-holo'])
+                    : (cm['trend-holo'] ?? cm['avg-holo'] ?? cm.trend ?? cm.avg);
                 if (typeof cmVal === 'number' && !isNaN(cmVal)) val = Number(cmVal.toFixed(2));
             }
         } else if (vKey === 'variantReverse') {
             val = extractPriceFromEntry(tcgp['reverse-holofoil']) ?? extractPriceFromEntry(tcgp['reverseHolofoil']);
             if (val === null) {
                 for (const d of detailed) {
-                    if (d?.type === 'reverse' && !d?.foil) {
+                    if ((d?.type === 'reverse' || (Array.isArray(d?.stamp) && d.stamp.includes('set-logo'))) && !d?.foil) {
                         const dTcgp = d?.pricing?.tcgplayer;
                         val = extractPriceFromEntry(dTcgp?.['reverse-holofoil']) ?? extractPriceFromEntry(dTcgp?.reverseHolofoil);
                         if (val !== null) break;
